@@ -16,7 +16,7 @@ void setup() {
 }
 
 void loop() {
-    double ticks = micros();
+    uint32_t ticks = micros();
 
     for (size_t i = 0; i < NUM_TASKS; i++) {
         if (ticks >= next_runs[i]) {
