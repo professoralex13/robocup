@@ -1,3 +1,5 @@
+#pragma once
+
 class SchedulerTask {
   private:
     const char *task_name;
