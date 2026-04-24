@@ -2,7 +2,7 @@
 #include <wiring.h>
 
 DriveTrainTask::DriveTrainTask(int left_port, int right_port)
-    : SchedulerTask("lidar_task"), left_port(left_port), right_port(right_port) {}
+    : SchedulerTask("drive_train_task"), left_port(left_port), right_port(right_port) {}
 
 void DriveTrainTask::setup() {
     left_motor.attach(left_port);
