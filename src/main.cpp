@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <memory>
 
-static LidarTask lidar_task = LidarTask(Serial1);
+static LidarTask lidar_task = LidarTask(Serial2);
 static DriveTrainTask drive_train_task = DriveTrainTask(0, 1);
 static ImuTask imu_task = ImuTask(&Wire);
 
