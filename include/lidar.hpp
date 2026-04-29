@@ -5,7 +5,7 @@
 #include <HardwareSerial.h>
 #include <etl/deque.h>
 
-#define MAX_LIDAR_POINTS 750
+#define MAX_LIDAR_POINTS 500
 
 class LidarTask : public SchedulerTask {
   private:

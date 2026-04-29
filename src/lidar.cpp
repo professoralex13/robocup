@@ -26,6 +26,10 @@ void LidarTask::loop() {
             if constexpr (std::is_same_v<T, std::optional<LidarResponseData>>) {
                 if (arg.has_value()) {
                     for (int i = 0; i < POINTS_PER_PACK; i++) {
+                        if ((*arg).points[i].position.norm() > 12.0) {
+                            continue;
+                        }
+
                         if (this->points.full()) {
                             this->points.pop_front();
                         }
@@ -34,7 +38,7 @@ void LidarTask::loop() {
                     }
                 }
             } else if constexpr (std::is_same_v<T, PacketParseError>) {
-                Serial.printf("Failed to parse Lidar Data (Type %d)\n", arg);
+                // Serial.printf("Failed to parse Lidar Data (Type %d)\n", arg);
             }
         },
         response);

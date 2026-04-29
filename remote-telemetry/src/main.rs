@@ -23,6 +23,8 @@ struct TelemetryPacket {
     points: [LidarPoint; 300],
 }
 
+const HEADER: [u8; 8] = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let port = serialport::new("/dev/ttyACM1", 115200)
         .timeout(Duration::from_secs(10))
@@ -43,7 +45,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut buf = [0u8; std::mem::size_of::<TelemetryPacket>()];
 
-        reader.skip_until(0xAA)?;
+        for x in HEADER {
+            reader.skip_until(x)?;
+        }
+
         reader.read_exact(&mut buf)?;
 
         let telemetry = TelemetryPacket::ref_from_bytes(&buf).unwrap();
