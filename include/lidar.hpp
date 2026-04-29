@@ -5,7 +5,7 @@
 #include <HardwareSerial.h>
 #include <etl/deque.h>
 
-#define MAX_LIDAR_POINTS 500
+#define LIDAR_POINTS_HISTORY 1500
 
 class LidarTask : public SchedulerTask {
   private:
@@ -19,5 +19,5 @@ class LidarTask : public SchedulerTask {
 
     int get_frequency() const override { return 500; }
 
-    etl::deque<LidarResponsePoint, MAX_LIDAR_POINTS> points;
+    etl::deque<LidarResponsePoint, LIDAR_POINTS_HISTORY> points;
 };

@@ -9,6 +9,8 @@ void TelemetryTask::setup() { Serial7.begin(115200); }
 
 const uint8_t TELEMETRY_HEADER[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
 
+#define NUM_TRANSMIT_POINTS 500
+
 struct __attribute__((packed)) LidarTelemetryPoint {
     int16_t x;
     int16_t y;
@@ -16,7 +18,7 @@ struct __attribute__((packed)) LidarTelemetryPoint {
 };
 
 struct __attribute__((packed)) TelemetryPacket {
-    LidarTelemetryPoint lidar_points[MAX_LIDAR_POINTS];
+    LidarTelemetryPoint lidar_points[NUM_TRANSMIT_POINTS];
 };
 
 void TelemetryTask::loop() {
@@ -28,12 +30,11 @@ void TelemetryTask::loop() {
 
     TelemetryPacket packet;
 
-    for (int i = 0; i < MAX_LIDAR_POINTS; i++) {
-        auto point = this->lidar_task->points[i];
+    for (int i = 0; i < NUM_TRANSMIT_POINTS; i++) {
+        auto point = this->lidar_task->points[this->lidar_task->points.size() - i - 1];
         packet.lidar_points[i].x = (int16_t)(point.position.x() * 1000.0);
         packet.lidar_points[i].y = (int16_t)(point.position.y() * 1000.0);
-        packet.lidar_points[i].intensity = 250;
-        // packet.lidar_points[i].intensity = (uint16_t)i * 256 / MAX_LIDAR_POINTS;
+        packet.lidar_points[i].intensity = point.intensity;
     }
 
     Serial7.write(TELEMETRY_HEADER, sizeof(TELEMETRY_HEADER));

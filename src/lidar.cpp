@@ -38,7 +38,18 @@ void LidarTask::loop() {
                     }
                 }
             } else if constexpr (std::is_same_v<T, PacketParseError>) {
-                // Serial.printf("Failed to parse Lidar Data (Type %d)\n", arg);
+                switch (arg) {
+                case PacketParseError::BufferFull:
+                    log_err("Serial Buffer Full");
+                    break;
+                case PacketParseError::IncorrectSize:
+                    log_err("Incorrect data size");
+                    break;
+                case PacketParseError::CrcError:
+                    // These are common so we ignore
+                    // log_err("CRC Error");
+                    break;
+                }
             }
         },
         response);
