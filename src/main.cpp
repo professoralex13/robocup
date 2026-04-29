@@ -1,16 +1,19 @@
 #include "drive_train.hpp"
 #include "imu.hpp"
 #include "lidar.hpp"
+#include "telemetry.hpp"
 #include <Arduino.h>
 #include <memory>
 
-static LidarTask lidar_task = LidarTask(Serial2);
+static LidarTask lidar_task = LidarTask();
 static DriveTrainTask drive_train_task = DriveTrainTask(0, 1);
 static ImuTask imu_task = ImuTask(&Wire);
+static TelemetryTask telemetry_task = TelemetryTask(&lidar_task);
 
-const size_t NUM_TASKS = 3;
+const size_t NUM_TASKS = 4;
 
-std::array<SchedulerTask *, NUM_TASKS> tasks = {&lidar_task, &drive_train_task, &imu_task};
+std::array<SchedulerTask *, NUM_TASKS> tasks = {&lidar_task, &drive_train_task, &imu_task,
+                                                &telemetry_task};
 std::array<uint32_t, NUM_TASKS> next_runs = {0};
 
 void setup() {
