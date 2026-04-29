@@ -1,6 +1,7 @@
 #include "lib/lidar.hpp"
 #include "lib/crc.hpp"
 #include <Eigen/Geometry>
+#include <RadioHead.h>
 
 #define DEG_TO_RAD (std::numbers::pi / 180.0)
 #define FULL_TURN (2.0 * std::numbers::pi)

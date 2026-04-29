@@ -48,7 +48,7 @@ enum class PacketParseError {
     CrcError,
 };
 
-#define MAX_BUFFER_SIZE 100
+#define MAX_BUFFER_SIZE 400
 
 class LidarDataReader {
   private:

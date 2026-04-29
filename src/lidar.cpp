@@ -3,10 +3,15 @@
 
 LidarTask::LidarTask() : SchedulerTask("lidar_task") {}
 
-void LidarTask::setup() { Serial2.begin(230400); }
+static uint8_t SERIAL_MEMORY[200];
+
+void LidarTask::setup() {
+    Serial2.begin(230400);
+    Serial2.addMemoryForRead(SERIAL_MEMORY, sizeof(SERIAL_MEMORY));
+}
 
 void LidarTask::loop() {
-    uint8_t buffer[4]; // Teensy 4.0 UART FIFO buffer is only 4 bytes maximum
+    static uint8_t buffer[100];
 
     int length = Serial2.available();
 
@@ -28,8 +33,8 @@ void LidarTask::loop() {
                         this->points.push_back((*arg).points[i]);
                     }
                 }
-            } else {
-                log_err("Failed to parse LIDAR data");
+            } else if constexpr (std::is_same_v<T, PacketParseError>) {
+                Serial.printf("Failed to parse Lidar Data (Type %d)\n", arg);
             }
         },
         response);
