@@ -1,5 +1,4 @@
 #include "drive_train.hpp"
-#include "imu.hpp"
 #include "lidar.hpp"
 #include "telemetry.hpp"
 #include <Arduino.h>
@@ -8,7 +7,7 @@
 static LidarTask lidar_task = LidarTask();
 static DriveTrainTask drive_train_task = DriveTrainTask(0, 1);
 static ImuTask imu_task = ImuTask(&Wire);
-static TelemetryTask telemetry_task = TelemetryTask(&lidar_task);
+static TelemetryTask telemetry_task = TelemetryTask(&lidar_task, &imu_task);
 
 const size_t NUM_TASKS = 4;
 

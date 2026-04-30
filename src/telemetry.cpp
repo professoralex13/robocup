@@ -2,8 +2,8 @@
 #include "Arduino.h"
 #include <wiring.h>
 
-TelemetryTask::TelemetryTask(LidarTask *lidar_task)
-    : SchedulerTask("telemetry_task"), lidar_task(lidar_task) {}
+TelemetryTask::TelemetryTask(LidarTask *lidar_task, ImuTask *imu_task)
+    : SchedulerTask("telemetry_task"), lidar_task(lidar_task), imu_task(imu_task) {}
 
 void TelemetryTask::setup() { Serial7.begin(115200); }
 
@@ -19,6 +19,8 @@ struct __attribute__((packed)) LidarTelemetryPoint {
 
 struct __attribute__((packed)) TelemetryPacket {
     LidarTelemetryPoint lidar_points[NUM_TRANSMIT_POINTS];
+    float heading;
+    float pitch;
 };
 
 void TelemetryTask::loop() {
@@ -36,6 +38,11 @@ void TelemetryTask::loop() {
         packet.lidar_points[i].y = (int16_t)(point.position.y() * 1000.0);
         packet.lidar_points[i].intensity = point.intensity;
     }
+
+    auto angles = imu_task->get_euler_angles();
+
+    packet.heading = angles.y();
+    packet.pitch = angles.x();
 
     Serial7.write(TELEMETRY_HEADER, sizeof(TELEMETRY_HEADER));
     Serial7.write(reinterpret_cast<uint8_t *>(&packet), sizeof(packet));

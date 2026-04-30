@@ -1,3 +1,4 @@
+#include "imu.hpp"
 #include "lib/lidar.hpp"
 #include "lidar.hpp"
 #include "scheduler_task.hpp"
@@ -7,9 +8,10 @@
 class TelemetryTask : public SchedulerTask {
   private:
     LidarTask *lidar_task;
+    ImuTask *imu_task;
 
   public:
-    TelemetryTask(LidarTask *lidar_task);
+    TelemetryTask(LidarTask *lidar_task, ImuTask *imu_task);
 
     void setup();
     void loop();

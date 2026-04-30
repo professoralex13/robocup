@@ -1,3 +1,4 @@
+#include "eigen.h"
 #include "scheduler_task.hpp"
 #include <Adafruit_BNO055.h>
 #include <HardwareSerial.h>
@@ -12,6 +13,8 @@ class ImuTask : public SchedulerTask {
 
     void setup();
     void loop();
+
+    Eigen::Vector3f get_euler_angles();
 
     int get_frequency() const override { return 5; }
 };

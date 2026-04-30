@@ -8,7 +8,10 @@ void ImuTask::setup() {
     }
 }
 
-void ImuTask::loop() {
+void ImuTask::loop() {}
+
+Eigen::Vector3f ImuTask::get_euler_angles() {
     imu::Vector<3> eulers = this->imu.getVector(Adafruit_BNO055::VECTOR_EULER);
-    imu::Vector<3> lin_accel = this->imu.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+
+    return {eulers.y() * DEG_TO_RAD, eulers.x() * DEG_TO_RAD, eulers.z() * DEG_TO_RAD};
 }

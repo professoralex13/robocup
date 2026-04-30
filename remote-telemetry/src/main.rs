@@ -21,12 +21,14 @@ struct LidarPoint {
 #[derive(Copy, Clone, FromBytes, Debug, KnownLayout, Immutable)]
 struct TelemetryPacket {
     points: [LidarPoint; 500],
+    heading: f32,
+    pitch: f32,
 }
 
 const HEADER: [u8; 8] = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let port = serialport::new("/dev/ttyACM1", 115200)
+    let port = serialport::new("/dev/ttyCH343USB0", 115200)
         .timeout(Duration::from_secs(10))
         .open()
         .unwrap();
@@ -61,6 +63,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Color::color_from_hsv(360.0 / 256.0 * point.intensity as f32, 1.0, 1.0),
             );
         }
+
+        d.draw_text(
+            format!(
+                "Heading: {:.2}°, Pitch: {:.2}°",
+                telemetry.heading as f64 * RAD2DEG,
+                telemetry.pitch as f64 * RAD2DEG,
+            )
+            .as_str(),
+            20,
+            20,
+            20,
+            Color::BLACK,
+        )
     }
 
     Ok(())
