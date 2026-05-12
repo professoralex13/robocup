@@ -1,4 +1,5 @@
 use std::{
+    f32::consts::PI,
     io::{BufRead, BufReader, Read},
     time::Duration,
 };
@@ -23,12 +24,15 @@ struct TelemetryPacket {
     points: [LidarPoint; 500],
     heading: f32,
     pitch: f32,
+
+    left_wheel_velocity: f32,
+    right_wheel_velocity: f32,
 }
 
 const HEADER: [u8; 8] = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let port = serialport::new("/dev/ttyCH343USB0", 115200)
+    let port = serialport::new("/dev/ttyACM1", 115200)
         .timeout(Duration::from_secs(10))
         .open()
         .unwrap();
@@ -75,7 +79,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             20,
             20,
             Color::BLACK,
-        )
+        );
+
+        d.draw_text(
+            format!(
+                "Left: {:.1}rpm, Right: {:.1}rpm",
+                60.0 * telemetry.left_wheel_velocity / (2.0 * PI),
+                60.0 * telemetry.right_wheel_velocity / (2.0 * PI)
+            )
+            .as_str(),
+            20,
+            40,
+            20,
+            Color::BLACK,
+        );
     }
 
     Ok(())
