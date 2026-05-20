@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Encoder.h"
 #include "scheduler_task.hpp"
 #include <Servo.h>

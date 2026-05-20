@@ -1,5 +1,6 @@
 #include "lidar.hpp"
 #include "telemetry.hpp"
+#include "user_command.hpp"
 #include <Arduino.h>
 #include <memory>
 
@@ -7,11 +8,12 @@ static LidarTask lidar_task = LidarTask();
 static DriveTrainTask drive_train_task = DriveTrainTask();
 static ImuTask imu_task = ImuTask(&Wire);
 static TelemetryTask telemetry_task = TelemetryTask(&lidar_task, &imu_task, &drive_train_task);
+static UserCommandTask user_command_task = UserCommandTask(&drive_train_task);
 
-const size_t NUM_TASKS = 4;
+const size_t NUM_TASKS = 5;
 
 std::array<SchedulerTask *, NUM_TASKS> tasks = {&lidar_task, &drive_train_task, &imu_task,
-                                                &telemetry_task};
+                                                &telemetry_task, &user_command_task};
 std::array<uint32_t, NUM_TASKS> next_runs = {0};
 
 struct TimingData {
@@ -32,6 +34,7 @@ std::array<TimingData, NUM_TASKS> task_timing_data = {{{
 
 void setup() {
     Serial.begin(9600);
+    Serial7.begin(115200);
 
     for (size_t i = 0; i < NUM_TASKS; i++) {
         tasks[i]->setup();
