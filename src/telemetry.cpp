@@ -2,13 +2,6 @@
 #include "Arduino.h"
 #include <wiring.h>
 
-TelemetryTask::TelemetryTask(LidarTask *lidar_task, ImuTask *imu_task,
-                             DriveTrainTask *drive_train_task)
-    : SchedulerTask("telemetry_task"), lidar_task(lidar_task), imu_task(imu_task),
-      drive_train_task(drive_train_task) {}
-
-void TelemetryTask::setup() { Serial7.begin(115200); }
-
 const uint8_t TELEMETRY_HEADER[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
 
 #define NUM_TRANSMIT_POINTS 500
@@ -26,6 +19,18 @@ struct __attribute__((packed)) TelemetryPacket {
     float left_wheel_velocity;
     float right_wheel_velocity;
 };
+
+TelemetryTask::TelemetryTask(LidarTask *lidar_task, ImuTask *imu_task,
+                             DriveTrainTask *drive_train_task)
+    : SchedulerTask("telemetry_task"), lidar_task(lidar_task), imu_task(imu_task),
+      drive_train_task(drive_train_task) {}
+
+static uint8_t SERIAL_MEMORY[sizeof(TelemetryPacket) + sizeof(TELEMETRY_HEADER)];
+
+void TelemetryTask::setup() {
+    Serial7.begin(115200);
+    Serial7.addMemoryForWrite(SERIAL_MEMORY, sizeof(SERIAL_MEMORY));
+}
 
 void TelemetryTask::loop() {
     TelemetryPacket packet;
