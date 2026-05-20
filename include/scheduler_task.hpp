@@ -1,13 +1,11 @@
 #pragma once
 
 class SchedulerTask {
-  private:
-    const char *task_name;
-
   protected:
     SchedulerTask(const char *name);
 
   public:
+    const char *task_name;
     virtual void setup() = 0;
     virtual void loop() = 0;
     virtual int get_frequency() const = 0;
