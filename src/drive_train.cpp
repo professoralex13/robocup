@@ -12,8 +12,8 @@ void DriveTrainTask::setup() {
 #define MAX_FORWARD 1950
 
 void DriveTrainTask::loop() {
-    left_motor.writeMicroseconds(map(this->left_command, -1.0, 1.0, MAX_REVERSE, MAX_FORWARD));
-    right_motor.writeMicroseconds(map(this->left_command, -1.0, 1.0, MAX_REVERSE, MAX_FORWARD));
+    left_motor.writeMicroseconds(map(this->left_command, -1.0, 1.0, MAX_FORWARD, MAX_REVERSE));
+    right_motor.writeMicroseconds(map(this->right_command, -1.0, 1.0, MAX_REVERSE, MAX_FORWARD));
 
     uint32_t timestamp = micros();
 
@@ -21,7 +21,7 @@ void DriveTrainTask::loop() {
 
     last_timestamp = timestamp;
 
-    int left_ticks = left_encoder.read();
+    int left_ticks = -left_encoder.read();
     int right_ticks = right_encoder.read();
 
     this->left_velocity = RADIANS_PER_TICK * (float)(left_ticks - last_left_ticks) / dt;

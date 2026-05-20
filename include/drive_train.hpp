@@ -4,13 +4,13 @@
 
 class DriveTrainTask : public SchedulerTask {
   private:
-    static const int LEFT_MOTOR_CONTROL_PIN = 0;
-    static const int RIGHT_MOTOR_CONTROL_PIN = 1;
+    static const int LEFT_MOTOR_CONTROL_PIN = 1;
+    static const int RIGHT_MOTOR_CONTROL_PIN = 0;
 
-    static const int LEFT_MOTOR_ENCODER_PIN_A = 2;
-    static const int LEFT_MOTOR_ENCODER_PIN_B = 3;
-    static const int RIGHT_MOTOR_ENCODER_PIN_A = 4;
-    static const int RIGHT_MOTOR_ENCODER_PIN_B = 5;
+    static const int LEFT_MOTOR_ENCODER_PIN_A = 4;
+    static const int LEFT_MOTOR_ENCODER_PIN_B = 5;
+    static const int RIGHT_MOTOR_ENCODER_PIN_A = 2;
+    static const int RIGHT_MOTOR_ENCODER_PIN_B = 3;
 
     static const int TICKS_PER_REVOLUTION = 2800;
 
