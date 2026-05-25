@@ -1,6 +1,7 @@
 use teensy4_bsp::hal::{
     flexpwm::{
-        ClockSelect, FULL_RELOAD_VALUE_REGISTER, LoadMode, Output, Prescaler, Pwm, Submodule,
+        ClockSelect, FULL_RELOAD_VALUE_REGISTER, LoadMode, Output, PairOperation, Prescaler, Pwm,
+        Submodule,
     },
     iomuxc::{
         consts::Const,
@@ -41,9 +42,10 @@ where
         submodule.set_wait_enable(true);
         submodule.set_clock_select(ClockSelect::Ipg);
         submodule.set_prescaler(Prescaler::Prescaler128);
+        submodule.set_pair_operation(PairOperation::Independent);
         submodule.set_load_mode(LoadMode::reload_full());
         submodule.set_load_frequency(1);
-        submodule.set_initial_count(&pwm, 0);
+        submodule.set_initial_count(pwm, 0);
         submodule.set_value(FULL_RELOAD_VALUE_REGISTER, CYCLE_COUNTS as i16);
 
         let output_a = Output::new_a(pin_a);
@@ -54,6 +56,12 @@ where
 
         output_a.set_turn_off(&submodule, map_to_counts(0.0));
         output_a.set_turn_off(&submodule, map_to_counts(0.0));
+
+        output_a.set_output_enable(pwm, true);
+        output_b.set_output_enable(pwm, true);
+
+        submodule.set_load_ok(pwm);
+        submodule.set_running(pwm, true);
 
         Self {
             submodule,

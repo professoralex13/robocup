@@ -1,7 +1,6 @@
 use rtic::Mutex;
 
 use lidar_lib::data::{LidarDataReader, LidarPacket};
-use teensy4_bsp::pins::tmm::{P7, P8};
 
 pub async fn entrypoint(cx: crate::app::lidar_task::Context<'_>) {
     let serial = cx.local.lidar_serial;
