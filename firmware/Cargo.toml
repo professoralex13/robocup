@@ -32,8 +32,11 @@ features = [
     "rt",
 ]
 
+[dependencies.zerocopy]
+workspace = true
+
 [dependencies.lidar-lib]
-git = "https://github.com/UCCR1/positioning-system"
+workspace = true
 [dependencies.linalg]
 git = "https://github.com/UCCR1/positioning-system"
 [dependencies.uom]
@@ -41,7 +44,7 @@ git = "https://github.com/UCCR1/uom"
 default-features = false
 features = ["si", "f32", "libm"]
 
-# Don't optimize build dependencies, like proc macros.
-# Helps with build times.
-[profile.release.build-override]
-opt-level = 0
+[profile.release]
+opt-level = "z"   # Optimize for size
+lto = true        # Enable Link Time Optimization (LTO)
+codegen-units = 1

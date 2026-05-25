@@ -2,35 +2,19 @@ use std::{
     f32::consts::PI,
     io::{BufRead, BufReader, BufWriter, Read, Write},
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
+
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
+
+use firmware::{TELEMETRY_HEADER, TelemetryPacket};
 
 use std::sync::Mutex;
 
 use raylib::prelude::*;
-use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 const WIDTH: i32 = 1280;
 const HEIGHT: i32 = 720;
-
-#[repr(C, packed)]
-#[derive(Copy, Clone, FromBytes, Debug, Immutable)]
-struct LidarPoint {
-    x: i16,
-    y: i16,
-    intensity: u8,
-}
-
-#[repr(C, packed)]
-#[derive(Copy, Clone, FromBytes, Debug, KnownLayout, Immutable)]
-struct TelemetryPacket {
-    points: [LidarPoint; 500],
-    heading: f32,
-    pitch: f32,
-
-    left_wheel_velocity: f32,
-    right_wheel_velocity: f32,
-}
 
 #[repr(C, packed)]
 #[derive(Copy, Clone, IntoBytes, Debug, KnownLayout, Immutable)]
@@ -39,7 +23,6 @@ struct CommandPacket {
     right_command: i8,
 }
 
-const TELEMETRY_HEADER: [u8; 8] = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
 const COMMAND_HEADER: [u8; 10] = [0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00];
 
 static TELEMETRY: Mutex<Option<TelemetryPacket>> = Mutex::new(None);

@@ -7,18 +7,17 @@ mod drive_train;
 mod imu;
 mod lidar;
 mod servo;
+mod telemetry;
 
 #[rtic::app(device = teensy4_bsp, peripherals = true, dispatchers = [KPP])]
 mod app {
     use bno055::Bno055;
-    use bsp::board;
     use heapless::spsc::Queue;
     use lidar_lib::data::LidarPoint;
     use linalg::{quaternion::Quaternion, vector::Vector};
     use rtic_sync::{make_signal, signal::SignalReader};
     use teensy4_bsp::{
-        self as bsp,
-        board::Lpi2cClockSpeed,
+        board::{self, Lpi2cClockSpeed},
         hal::{
             dma::channel::Channel,
             lpi2c::{Lpi2c, Pins},
@@ -43,6 +42,10 @@ mod app {
     /// These resources are local to individual tasks.
     #[local]
     struct Local {
+        // Telemetry
+        telemetry_serial: board::Lpuart7,
+        telemetry_read_dma: Channel,
+        telemetry_write_dma: Channel,
         // Imu
         imu: Bno055<Lpi2c<Pins<P19, P18>, 1>>,
         // Drive Train
@@ -60,6 +63,7 @@ mod app {
             pins,
             usb,
             lpuart6,
+            lpuart7,
             mut dma,
             mut flexpwm1,
             lpi2c1,
@@ -76,6 +80,8 @@ mod app {
 
         lidar_task::spawn().unwrap();
         drive_train_task::spawn(drive_train_command_reader).unwrap();
+        imu_task::spawn().unwrap();
+        telemetry_task::spawn().unwrap();
 
         (
             Shared {
@@ -97,6 +103,9 @@ mod app {
                 ),
                 lidar_serial: board::lpuart(lpuart6, pins.p1, pins.p0, 230400),
                 lidar_dma: dma[0].take().unwrap(),
+                telemetry_read_dma: dma[1].take().unwrap(),
+                telemetry_write_dma: dma[2].take().unwrap(),
+                telemetry_serial: board::lpuart(lpuart7, pins.p29, pins.p28, 115200),
                 poller: logging::log::usbd(usb, logging::Interrupts::Enabled).unwrap(),
             },
         )
@@ -118,6 +127,11 @@ mod app {
     #[task(local=[imu], shared=[robot_orientation])]
     async fn imu_task(cx: imu_task::Context) {
         crate::imu::entrypoint(cx).await.unwrap()
+    }
+
+    #[task(local=[telemetry_read_dma, telemetry_write_dma, telemetry_serial], shared=[robot_orientation, lidar_points])]
+    async fn telemetry_task(cx: telemetry_task::Context) {
+        crate::telemetry::entrpoint(cx).await.unwrap()
     }
 
     #[task(binds = USB_OTG1, local = [poller])]

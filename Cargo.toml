@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["firmware", "remote-telemetry"]
+
+[workspace.dependencies]
+zerocopy = { version = "0.8.48", default-features = false, features = [
+    "derive",
+] }
+
+[workspace.dependencies.lidar-lib]
+git = "https://github.com/UCCR1/positioning-system"
