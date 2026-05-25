@@ -3,11 +3,13 @@
 
 use teensy4_panic as _;
 
+mod lidar;
+
 #[rtic::app(device = teensy4_bsp, peripherals = true, dispatchers = [KPP])]
 mod app {
     use bsp::board;
     use heapless::spsc::Queue;
-    use lidar_lib::data::{LidarDataReader, LidarPacket, LidarPoint};
+    use lidar_lib::data::LidarPoint;
     use teensy4_bsp::{self as bsp, hal::dma::channel::Channel};
 
     use imxrt_log as logging;
@@ -52,7 +54,7 @@ mod app {
             rtic_monotonics::create_systick_token!(),
         );
 
-        lidar::spawn().unwrap();
+        lidar_task::spawn().unwrap();
 
         (
             Shared {
@@ -67,31 +69,8 @@ mod app {
     }
 
     #[task(local=[serial1, dma_ch0], shared=[lidar_points])]
-    async fn lidar(cx: lidar::Context) {
-        let serial1 = cx.local.serial1;
-        let dma_ch0 = cx.local.dma_ch0;
-
-        let mut lidar_points = cx.shared.lidar_points;
-
-        let mut reader: LidarDataReader = LidarDataReader::new();
-
-        loop {
-            let mut buffer = [0u8; LidarPacket::SIZE];
-
-            serial1.dma_read(dma_ch0, &mut buffer).await.unwrap();
-
-            if let Some(packet) = reader.read_slice(&buffer).unwrap() {
-                lidar_points.lock(|points| {
-                    for point in packet.points {
-                        if points.is_full() {
-                            points.dequeue();
-                        }
-
-                        points.enqueue(point).unwrap();
-                    }
-                })
-            }
-        }
+    async fn lidar_task(cx: lidar_task::Context) {
+        crate::lidar::entrypoint(cx).await
     }
 
     #[task(binds = USB_OTG1, local = [poller])]
