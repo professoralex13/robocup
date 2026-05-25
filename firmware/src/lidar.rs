@@ -1,10 +1,11 @@
 use rtic::Mutex;
 
 use lidar_lib::data::{LidarDataReader, LidarPacket};
+use teensy4_bsp::pins::tmm::{P7, P8};
 
 pub async fn entrypoint(cx: crate::app::lidar_task::Context<'_>) {
-    let serial1 = cx.local.serial1;
-    let dma_ch0 = cx.local.dma_ch0;
+    let serial = cx.local.lidar_serial;
+    let dma = cx.local.lidar_dma;
 
     let mut lidar_points = cx.shared.lidar_points;
 
@@ -13,7 +14,7 @@ pub async fn entrypoint(cx: crate::app::lidar_task::Context<'_>) {
     loop {
         let mut buffer = [0u8; LidarPacket::SIZE];
 
-        serial1.dma_read(dma_ch0, &mut buffer).await.unwrap();
+        serial.dma_read(dma, &mut buffer).await.unwrap();
 
         if let Some(packet) = reader.read_slice(&buffer).unwrap() {
             lidar_points.lock(|points| {
