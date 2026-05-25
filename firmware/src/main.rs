@@ -4,24 +4,32 @@
 use teensy4_panic as _;
 
 mod drive_train;
+mod imu;
 mod lidar;
 mod servo;
 
 #[rtic::app(device = teensy4_bsp, peripherals = true, dispatchers = [KPP])]
 mod app {
+    use bno055::Bno055;
     use bsp::board;
     use heapless::spsc::Queue;
     use lidar_lib::data::LidarPoint;
+    use linalg::{quaternion::Quaternion, vector::Vector};
     use rtic_sync::{make_signal, signal::SignalReader};
     use teensy4_bsp::{
         self as bsp,
-        hal::dma::channel::Channel,
-        pins::tmm::{P7, P8},
+        board::Lpi2cClockSpeed,
+        hal::{
+            dma::channel::Channel,
+            lpi2c::{Lpi2c, Pins},
+        },
+        pins::t40::{P7, P8, P18, P19},
     };
 
     use imxrt_log as logging;
 
     use rtic_monotonics::systick::Systick;
+    use uom::si::f32::Ratio;
 
     use crate::servo::ServoController;
 
@@ -29,11 +37,14 @@ mod app {
     #[shared]
     struct Shared {
         lidar_points: Queue<LidarPoint, 512>,
+        robot_orientation: Quaternion<Ratio>,
     }
 
     /// These resources are local to individual tasks.
     #[local]
     struct Local {
+        // Imu
+        imu: Bno055<Lpi2c<Pins<P19, P18>, 1>>,
         // Drive Train
         drive_servo_controller: ServoController<1, 3, P8, P7>,
         // Lidar
@@ -51,6 +62,7 @@ mod app {
             lpuart6,
             mut dma,
             mut flexpwm1,
+            lpi2c1,
             ..
         } = board::t40(cx.device);
 
@@ -62,18 +74,27 @@ mod app {
             rtic_monotonics::create_systick_token!(),
         );
 
-        let drive_servo_controller =
-            ServoController::new(&mut flexpwm1.0, flexpwm1.1.3, pins.p8, pins.p7);
-
         lidar_task::spawn().unwrap();
         drive_train_task::spawn(drive_train_command_reader).unwrap();
 
         (
             Shared {
                 lidar_points: Queue::new(),
+                robot_orientation: Vector::default(),
             },
             Local {
-                drive_servo_controller,
+                imu: Bno055::new(board::lpi2c(
+                    lpi2c1,
+                    pins.p19,
+                    pins.p18,
+                    Lpi2cClockSpeed::MHz1,
+                )),
+                drive_servo_controller: ServoController::new(
+                    &mut flexpwm1.0,
+                    flexpwm1.1.3,
+                    pins.p8,
+                    pins.p7,
+                ),
                 lidar_serial: board::lpuart(lpuart6, pins.p1, pins.p0, 230400),
                 lidar_dma: dma[0].take().unwrap(),
                 poller: logging::log::usbd(usb, logging::Interrupts::Enabled).unwrap(),
@@ -92,6 +113,11 @@ mod app {
         command_signal: SignalReader<'static, (f32, f32)>,
     ) {
         crate::drive_train::entrypoint(cx, command_signal).await
+    }
+
+    #[task(local=[imu], shared=[robot_orientation])]
+    async fn imu_task(cx: imu_task::Context) {
+        crate::imu::entrypoint(cx).await.unwrap()
     }
 
     #[task(binds = USB_OTG1, local = [poller])]
