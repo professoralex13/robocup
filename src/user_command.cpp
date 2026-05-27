@@ -16,9 +16,13 @@ static uint8_t SERIAL_MEMORY[200];
 
 void UserCommandTask::setup() { Serial7.addMemoryForRead(SERIAL_MEMORY, sizeof(SERIAL_MEMORY)); }
 
+#define COMMAND_TIMEOUT 1000
+
 void UserCommandTask::loop() {
     if (Serial7.available() < sizeof(COMMAND_HEADER) + sizeof(CommandPacket)) {
-        drive_train_task->set_commands(0.0, 0.0);
+        if (millis() - last_contact > COMMAND_TIMEOUT) {
+            drive_train_task->set_commands(0.0, 0.0);
+        }
 
         return;
     }
@@ -35,9 +39,10 @@ void UserCommandTask::loop() {
         }
     }
 
+    last_contact = millis();
+
     CommandPacket packet;
 
-    // TODO: Add error checking because this data is often corrupted
     Serial7.readBytes((char *)&packet, sizeof(CommandPacket));
 
     drive_train_task->set_commands((float)packet.left_command / 100.0,

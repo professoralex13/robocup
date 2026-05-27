@@ -12,6 +12,8 @@ class UserCommandTask : public SchedulerTask {
   private:
     DriveTrainTask *drive_train_task;
 
+    uint32_t last_contact;
+
   public:
     UserCommandTask(DriveTrainTask *drive_train_task);
 
