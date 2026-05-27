@@ -7,12 +7,16 @@
 static LidarTask lidar_task = LidarTask();
 static DriveTrainTask drive_train_task = DriveTrainTask();
 static ImuTask imu_task = ImuTask(&Wire);
-static TelemetryTask telemetry_task = TelemetryTask(&lidar_task, &imu_task, &drive_train_task);
+static PositionTrackingTask position_tracking_task =
+    PositionTrackingTask(&imu_task, &drive_train_task);
+static TelemetryTask telemetry_task =
+    TelemetryTask(&lidar_task, &imu_task, &drive_train_task, &position_tracking_task);
 static UserCommandTask user_command_task = UserCommandTask(&drive_train_task);
 
-const size_t NUM_TASKS = 5;
+const size_t NUM_TASKS = 6;
 
-std::array<SchedulerTask *, NUM_TASKS> tasks = {&lidar_task, &drive_train_task, &imu_task,
+std::array<SchedulerTask *, NUM_TASKS> tasks = {&lidar_task,     &drive_train_task,
+                                                &imu_task,       &position_tracking_task,
                                                 &telemetry_task, &user_command_task};
 std::array<uint32_t, NUM_TASKS> next_runs = {0};
 

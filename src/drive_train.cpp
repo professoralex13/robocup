@@ -31,6 +31,11 @@ void DriveTrainTask::loop() {
     last_right_ticks = right_ticks;
 }
 
+float DriveTrainTask::get_left_wheel_position() { return RADIANS_PER_TICK * this->last_left_ticks; }
+float DriveTrainTask::get_right_wheel_position() {
+    return RADIANS_PER_TICK * this->last_right_ticks;
+}
+
 float DriveTrainTask::get_left_wheel_velocity() { return this->left_velocity; }
 
 float DriveTrainTask::get_right_wheel_velocity() { return this->right_velocity; }

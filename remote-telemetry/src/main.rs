@@ -30,6 +30,9 @@ struct TelemetryPacket {
 
     left_wheel_velocity: f32,
     right_wheel_velocity: f32,
+
+    position_x: f32,
+    position_y: f32,
 }
 
 #[repr(C, packed)]
@@ -45,7 +48,7 @@ const COMMAND_HEADER: [u8; 10] = [0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22
 static TELEMETRY: Mutex<Option<TelemetryPacket>> = Mutex::new(None);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let port = serialport::new("/dev/ttyACM1", 115200)
+    let port = serialport::new("/dev/ttyACM0", 115200)
         .timeout(Duration::from_secs(100))
         .open()
         .unwrap();
@@ -152,6 +155,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .as_str(),
                 20,
                 40,
+                20,
+                Color::BLACK,
+            );
+
+            d.draw_text(
+                format!(
+                    "X: {:.1}nn, Y: {:.1}mm",
+                    1.0 * telemetry.position_x,
+                    1.0 * telemetry.position_y,
+                )
+                .as_str(),
+                20,
+                80,
                 20,
                 Color::BLACK,
             );

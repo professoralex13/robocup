@@ -18,12 +18,16 @@ struct __attribute__((packed)) TelemetryPacket {
     float pitch;
     float left_wheel_velocity;
     float right_wheel_velocity;
+
+    float position_x;
+    float position_y;
 };
 
 TelemetryTask::TelemetryTask(LidarTask *lidar_task, ImuTask *imu_task,
-                             DriveTrainTask *drive_train_task)
+                             DriveTrainTask *drive_train_task,
+                             PositionTrackingTask *position_tracking_task)
     : SchedulerTask("telemetry_task"), lidar_task(lidar_task), imu_task(imu_task),
-      drive_train_task(drive_train_task) {}
+      drive_train_task(drive_train_task), position_tracking_task(position_tracking_task) {}
 
 static uint8_t SERIAL_MEMORY[sizeof(TelemetryPacket) + sizeof(TELEMETRY_HEADER)];
 
@@ -53,6 +57,9 @@ void TelemetryTask::loop() {
 
     packet.left_wheel_velocity = drive_train_task->get_left_wheel_velocity();
     packet.right_wheel_velocity = drive_train_task->get_right_wheel_velocity();
+
+    packet.position_x = position_tracking_task->get_current_pose().position.x();
+    packet.position_y = position_tracking_task->get_current_pose().position.y();
 
     Serial7.write(TELEMETRY_HEADER, sizeof(TELEMETRY_HEADER));
     Serial7.write(reinterpret_cast<uint8_t *>(&packet), sizeof(packet));

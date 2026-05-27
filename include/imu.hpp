@@ -1,3 +1,5 @@
+#pragma once
+
 #include "eigen.h"
 #include "scheduler_task.hpp"
 #include <Adafruit_BNO055.h>
