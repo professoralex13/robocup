@@ -44,7 +44,7 @@ git = "https://github.com/UCCR1/uom"
 default-features = false
 features = ["si", "f32", "libm"]
 
-[profile.release]
+[profile.dev]
 opt-level = "z"   # Optimize for size
 lto = true        # Enable Link Time Optimization (LTO)
 codegen-units = 1
