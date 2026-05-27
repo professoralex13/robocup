@@ -97,7 +97,7 @@ mod app {
                 ))
                 .with_alternative_address(),
                 drive_servo_controller: ServoController::new(
-                    &mut flexpwm1.0,
+                    flexpwm1.0,
                     flexpwm1.1.3,
                     pins.p8,
                     pins.p7,

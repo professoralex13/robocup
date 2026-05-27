@@ -9,7 +9,6 @@ pub async fn entrypoint(
     loop {
         let (left_command, right_command) = command_signal.wait().await;
 
-        servo_controller.set_a_value(left_command);
-        servo_controller.set_b_value(right_command);
+        servo_controller.set_values(-left_command, right_command);
     }
 }
