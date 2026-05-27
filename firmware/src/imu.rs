@@ -14,7 +14,10 @@ pub async fn entrypoint(
     imu.set_mode(bno055::BNO055OperationMode::NDOF, &mut Systick)?;
 
     loop {
-        let quat = imu.quaternion()?;
+        let Ok(quat) = imu.quaternion() else {
+            // The I2C will error every now and then, not critical
+            continue;
+        };
 
         let converted = Quaternion::from_direction_component(
             Ratio::new::<ratio>(quat.s),

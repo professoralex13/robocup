@@ -93,8 +93,9 @@ mod app {
                     lpi2c1,
                     pins.p19,
                     pins.p18,
-                    Lpi2cClockSpeed::MHz1,
-                )),
+                    Lpi2cClockSpeed::KHz400,
+                ))
+                .with_alternative_address(),
                 drive_servo_controller: ServoController::new(
                     &mut flexpwm1.0,
                     flexpwm1.1.3,
