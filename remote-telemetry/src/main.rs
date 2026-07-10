@@ -17,6 +17,9 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 const WIDTH: i32 = 1280;
 const HEIGHT: i32 = 720;
+const FIELD_WIDTH_X_METERS: f32 = 2.4;
+const FIELD_HEIGHT_Y_METERS: f32 = 4.9;
+const VIEW_MARGIN_PX: f32 = 60.0;
 
 #[repr(C, packed)]
 #[derive(Copy, Clone, IntoBytes, FromBytes, Debug, Immutable)]
@@ -236,15 +239,64 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
             Color::BLACK,
         );
 
+        let screen_w = WIDTH as f32;
+        let screen_h = HEIGHT as f32;
+
+        let usable_w = (screen_w - 2.0 * VIEW_MARGIN_PX).max(1.0);
+        let usable_h = (screen_h - 2.0 * VIEW_MARGIN_PX).max(1.0);
+
+        let pixels_per_meter =
+            (usable_w / FIELD_WIDTH_X_METERS).min(usable_h / FIELD_HEIGHT_Y_METERS);
+
+        let field_px_w = FIELD_WIDTH_X_METERS * pixels_per_meter;
+        let field_px_h = FIELD_HEIGHT_Y_METERS * pixels_per_meter;
+
+        let field_origin_x = (screen_w - field_px_w) * 0.5;
+        let field_origin_y = (screen_h + field_px_h) * 0.5;
+
+        let world_to_screen = |x_m: f32, y_m: f32| -> Vector2 {
+            Vector2::new(
+                field_origin_x + x_m * pixels_per_meter,
+                field_origin_y - y_m * pixels_per_meter,
+            )
+        };
+
+        let bl = world_to_screen(0.0, 0.0);
+        let br = world_to_screen(FIELD_WIDTH_X_METERS, 0.0);
+        let tr = world_to_screen(FIELD_WIDTH_X_METERS, FIELD_HEIGHT_Y_METERS);
+        let tl = world_to_screen(0.0, FIELD_HEIGHT_Y_METERS);
+
+        d.draw_line_ex(bl, br, 2.0, Color::BLACK);
+        d.draw_line_ex(br, tr, 2.0, Color::BLACK);
+        d.draw_line_ex(tr, tl, 2.0, Color::BLACK);
+        d.draw_line_ex(tl, bl, 2.0, Color::BLACK);
+
         if let Some(telemetry) = TELEMETRY.lock().unwrap().clone() {
+            let heading = telemetry.heading;
+            let heading_sin = heading.sin();
+            let heading_cos = heading.cos();
+
             for point in telemetry.points {
-                d.draw_circle(
-                    (point.x as i32) / 4 + WIDTH / 2,
-                    -(point.y as i32) / 4 + HEIGHT / 2,
+                let lidar_x_robot_m = point.x as f32 / 1000.0;
+                let lidar_y_robot_m = point.y as f32 / 1000.0;
+
+                let lidar_x_world = telemetry.position_x + heading_cos * lidar_x_robot_m
+                    - heading_sin * lidar_y_robot_m;
+                let lidar_y_world = telemetry.position_y
+                    + heading_sin * lidar_x_robot_m
+                    + heading_cos * lidar_y_robot_m;
+
+                let screen = world_to_screen(lidar_x_world, lidar_y_world);
+
+                d.draw_circle_v(
+                    screen,
                     2.0,
                     Color::color_from_hsv(360.0 / 256.0 * point.intensity as f32, 1.0, 1.0),
                 );
             }
+
+            let robot_screen = world_to_screen(telemetry.position_x, telemetry.position_y);
+            d.draw_circle_v(robot_screen, 6.0, Color::RED);
 
             d.draw_text(
                 format!(
@@ -274,7 +326,7 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
 
             d.draw_text(
                 format!(
-                    "X: {:.1}nn, Y: {:.1}mm",
+                    "X: {:.2}m, Y: {:.2}m",
                     1.0 * telemetry.position_x,
                     1.0 * telemetry.position_y,
                 )

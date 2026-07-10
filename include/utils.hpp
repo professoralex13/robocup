@@ -1,6 +1,6 @@
 #include <numbers>
 
-float diff_angle(float angle1, float angle2) {
+inline float diff_angle(float angle1, float angle2) {
     float output = angle2 - angle1;
 
     if (output > std::numbers::pi) {
@@ -14,7 +14,7 @@ float diff_angle(float angle1, float angle2) {
     return output;
 }
 
-float wrap_heading(float heading) {
+inline float wrap_heading(float heading) {
     if (heading >= 2 * std::numbers::pi) {
         heading -= 2 * std::numbers::pi;
     }

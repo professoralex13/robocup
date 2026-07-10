@@ -46,15 +46,16 @@ void TelemetryTask::loop() {
     }
 
     auto angles = imu_task->get_euler_angles();
+    Pose localization_pose = position_tracking_task->get_current_pose();
 
-    packet.heading = angles.y();
+    packet.heading = localization_pose.heading;
     packet.pitch = angles.x();
 
     packet.left_wheel_velocity = drive_train_task->get_left_wheel_velocity();
     packet.right_wheel_velocity = drive_train_task->get_right_wheel_velocity();
 
-    packet.position_x = position_tracking_task->get_current_pose().position.x();
-    packet.position_y = position_tracking_task->get_current_pose().position.y();
+    packet.position_x = localization_pose.position.x();
+    packet.position_y = localization_pose.position.y();
 
     Serial.write(TELEMETRY_HEADER, sizeof(TELEMETRY_HEADER));
     Serial.write(reinterpret_cast<uint8_t *>(&packet), sizeof(packet));

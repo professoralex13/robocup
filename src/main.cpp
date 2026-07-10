@@ -9,7 +9,7 @@ static LidarTask lidar_task = LidarTask();
 static DriveTrainTask drive_train_task = DriveTrainTask();
 static ImuTask imu_task = ImuTask(&Wire);
 static PositionTrackingTask position_tracking_task =
-    PositionTrackingTask(&imu_task, &drive_train_task);
+    PositionTrackingTask(&imu_task, &drive_train_task, &lidar_task);
 static IntakeTask intake_task = IntakeTask();
 static TelemetryTask telemetry_task =
     TelemetryTask(&lidar_task, &imu_task, &drive_train_task, &position_tracking_task);
