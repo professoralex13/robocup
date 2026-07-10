@@ -21,6 +21,7 @@ struct __attribute__((packed)) TelemetryPacket {
 
     float position_x;
     float position_y;
+    float position_uncertainty;
 };
 
 TelemetryTask::TelemetryTask(LidarTask *lidar_task, ImuTask *imu_task,
@@ -56,6 +57,7 @@ void TelemetryTask::loop() {
 
     packet.position_x = localization_pose.position.x();
     packet.position_y = localization_pose.position.y();
+    packet.position_uncertainty = position_tracking_task->get_position_uncertainty();
 
     Serial.write(TELEMETRY_HEADER, sizeof(TELEMETRY_HEADER));
     Serial.write(reinterpret_cast<uint8_t *>(&packet), sizeof(packet));

@@ -27,6 +27,7 @@ class MonteCarloLocalization {
     void update_beam_model(const etl::deque<LidarResponsePoint, LIDAR_HISTORY_CAPACITY> &points);
 
     Pose get_estimated_pose() const;
+    float get_position_uncertainty() const;
 
   private:
     struct Particle {

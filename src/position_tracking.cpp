@@ -68,3 +68,7 @@ void PositionTrackingTask::loop() {
 }
 
 Pose PositionTrackingTask::get_current_pose() { return this->current_pose; }
+
+float PositionTrackingTask::get_position_uncertainty() {
+    return this->mcl.get_position_uncertainty();
+}

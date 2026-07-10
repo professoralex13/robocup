@@ -41,6 +41,7 @@ struct TelemetryPacket {
 
     position_x: f32,
     position_y: f32,
+    position_uncertainty: f32,
 }
 
 #[repr(C, packed)]
@@ -275,16 +276,20 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
             let heading = telemetry.heading;
             let heading_sin = heading.sin();
             let heading_cos = heading.cos();
+            let pitch = telemetry.pitch;
+            let left_wheel_velocity = telemetry.left_wheel_velocity;
+            let right_wheel_velocity = telemetry.right_wheel_velocity;
+            let position_x = telemetry.position_x;
+            let position_y = telemetry.position_y;
+            let position_uncertainty = telemetry.position_uncertainty;
 
             // Heading convention used everywhere in this viewer:
             // 0 rad means robot-forward points toward +Y on the field.
             // Positive heading is clockwise, like a compass.
             let robot_frame_to_world = |robot_x_m: f32, robot_y_m: f32| -> (f32, f32) {
                 // Compass-style clockwise-positive rotation.
-                let world_x =
-                    telemetry.position_x + heading_cos * robot_x_m + heading_sin * robot_y_m;
-                let world_y =
-                    telemetry.position_y - heading_sin * robot_x_m + heading_cos * robot_y_m;
+                let world_x = position_x + heading_cos * robot_x_m + heading_sin * robot_y_m;
+                let world_y = position_y - heading_sin * robot_x_m + heading_cos * robot_y_m;
 
                 (world_x, world_y)
             };
@@ -305,8 +310,11 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
                 );
             }
 
-            let robot_screen = world_to_screen(telemetry.position_x, telemetry.position_y);
-            d.draw_circle_v(robot_screen, 6.0, Color::RED);
+            let robot_screen = world_to_screen(position_x, position_y);
+
+            let uncertainty_m = position_uncertainty.max(0.01);
+            let uncertainty_radius_px = uncertainty_m * pixels_per_meter;
+            d.draw_circle_lines_v(robot_screen, uncertainty_radius_px, Color::RED);
 
             let heading_length_m = 0.22f32;
             let (heading_end_x, heading_end_y) = robot_frame_to_world(0.0, heading_length_m);
@@ -316,8 +324,8 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
             d.draw_text(
                 format!(
                     "Heading: {:.2}°, Pitch: {:.2}°",
-                    telemetry.heading as f64 * RAD2DEG,
-                    telemetry.pitch as f64 * RAD2DEG,
+                    heading as f64 * RAD2DEG,
+                    pitch as f64 * RAD2DEG,
                 )
                 .as_str(),
                 20,
@@ -329,8 +337,8 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
             d.draw_text(
                 format!(
                     "Left: {:.1}rpm, Right: {:.1}rpm",
-                    60.0 * telemetry.left_wheel_velocity / (2.0 * PI),
-                    60.0 * telemetry.right_wheel_velocity / (2.0 * PI)
+                    60.0 * left_wheel_velocity / (2.0 * PI),
+                    60.0 * right_wheel_velocity / (2.0 * PI)
                 )
                 .as_str(),
                 20,
@@ -340,14 +348,17 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
             );
 
             d.draw_text(
-                format!(
-                    "X: {:.3}m, Y: {:.3}m",
-                    1.0 * telemetry.position_x,
-                    1.0 * telemetry.position_y,
-                )
-                .as_str(),
+                format!("X: {:.3}m, Y: {:.3}m", 1.0 * position_x, 1.0 * position_y,).as_str(),
                 20,
                 80,
+                20,
+                Color::BLACK,
+            );
+
+            d.draw_text(
+                format!("Position Uncertainty: {:.3}m", position_uncertainty).as_str(),
+                20,
+                100,
                 20,
                 Color::BLACK,
             );

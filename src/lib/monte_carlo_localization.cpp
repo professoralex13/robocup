@@ -143,6 +143,18 @@ void MonteCarloLocalization::update_beam_model(
 
 Pose MonteCarloLocalization::get_estimated_pose() const { return this->estimated_pose; }
 
+float MonteCarloLocalization::get_position_uncertainty() const {
+    float weighted_variance = 0.0f;
+
+    for (size_t i = 0; i < this->particles.size(); i++) {
+        const Particle &particle = this->particles[i];
+        Eigen::Vector2f error = particle.pose.position - this->estimated_pose.position;
+        weighted_variance += particle.weight * error.squaredNorm();
+    }
+
+    return sqrtf(std::max(0.0f, weighted_variance));
+}
+
 // ----- Random and resampling helpers -----
 
 float MonteCarloLocalization::random_uniform() {
