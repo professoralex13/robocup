@@ -9,4 +9,5 @@ raylib = { version = "5.5.1", default-features = false, features = [
     "opengl_es_20",
 ] }
 serialport = "4.9.0"
+tungstenite = "0.24.0"
 zerocopy = { version = "0.8.48", features = ["derive"] }
