@@ -1,6 +1,7 @@
 #include "lib/lidar.hpp"
 #include "lib/crc.hpp"
 #include <Eigen/Geometry>
+#include <algorithm>
 
 #define DEG_TO_RAD (std::numbers::pi / 180.0)
 #define FULL_TURN (2.0 * std::numbers::pi)
@@ -67,12 +68,12 @@ LidarDataReader::read_span(etl::span<uint8_t> span) {
         if (this->data_buffer[0] != HEADER || this->data_buffer[1] != VERLEN) {
             this->data_buffer.erase(this->data_buffer.begin());
         } else {
-            std::span<uint8_t> packet = {
-                this->data_buffer.erase(this->data_buffer.begin(),
-                                        this->data_buffer.begin() + PACKET_SIZE),
-                PACKET_SIZE};
+            std::array<uint8_t, PACKET_SIZE> packet_data;
+            std::copy_n(this->data_buffer.begin(), PACKET_SIZE, packet_data.begin());
+            this->data_buffer.erase(this->data_buffer.begin(),
+                                    this->data_buffer.begin() + PACKET_SIZE);
 
-            return parse_packet(packet);
+            return parse_packet({packet_data.data(), packet_data.size()});
         }
     }
 

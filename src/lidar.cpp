@@ -1,5 +1,6 @@
 #include "lidar.hpp"
 #include "Arduino.h"
+#include <algorithm>
 
 LidarTask::LidarTask() : SchedulerTask("lidar_task") {}
 
@@ -8,14 +9,23 @@ static uint8_t SERIAL_MEMORY[200];
 void LidarTask::setup() {
     Serial2.begin(230400);
     Serial2.addMemoryForRead(SERIAL_MEMORY, sizeof(SERIAL_MEMORY));
+    Serial2.setTimeout(0);
 }
 
 void LidarTask::loop() {
     static uint8_t buffer[100];
 
-    int length = Serial2.available();
+    int available = Serial2.available();
+    if (available <= 0) {
+        return;
+    }
 
-    length = Serial2.readBytes(buffer, length);
+    size_t to_read = std::min((size_t)available, sizeof(buffer));
+
+    int length = Serial2.readBytes(buffer, to_read);
+    if (length <= 0) {
+        return;
+    }
 
     auto response = this->reader.read_span({buffer, length});
 
