@@ -12,7 +12,7 @@ static uint8_t SERIAL_MEMORY[200];
 namespace {
 
 // Lidar extrinsic in robot frame.
-// +X is robot-right, +Y is robot-forward, yaw is radians CCW.
+// +X is robot-right, +Y is robot-forward, yaw is compass-style clockwise-positive.
 constexpr float LIDAR_OFFSET_X_METERS = 0.0f;
 constexpr float LIDAR_OFFSET_Y_METERS = 0.0f;
 constexpr float LIDAR_YAW_OFFSET_RADIANS = 0.0f;
@@ -50,10 +50,15 @@ void LidarTask::set_ignored_angle_range(float start_radians, float end_radians) 
 void LidarTask::disable_ignored_angle_range() { this->ignore_angle_enabled = false; }
 
 LidarResponsePoint LidarTask::to_robot_frame(const LidarResponsePoint &point) const {
-    Eigen::Rotation2Df lidar_to_robot(this->mount_yaw_in_robot_frame);
+    float heading = this->mount_yaw_in_robot_frame;
+    float heading_sin = sinf(heading);
+    float heading_cos = cosf(heading);
+
+    Eigen::Vector2f rotated(heading_cos * point.position.x() + heading_sin * point.position.y(),
+                            -heading_sin * point.position.x() + heading_cos * point.position.y());
 
     return {
-        .position = lidar_to_robot * point.position + this->mount_position_in_robot_frame,
+        .position = rotated + this->mount_position_in_robot_frame,
         .intensity = point.intensity,
     };
 }

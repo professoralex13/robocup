@@ -13,5 +13,7 @@ void ImuTask::loop() {}
 Eigen::Vector3f ImuTask::get_euler_angles() {
     imu::Vector<3> eulers = this->imu.getVector(Adafruit_BNO055::VECTOR_EULER);
 
-    return {eulers.y() * DEG_TO_RAD, eulers.x() * DEG_TO_RAD, eulers.z() * DEG_TO_RAD};
+    // Compass-style convention:
+    // +heading is clockwise, 0 is forward, matching the robot/world visualization.
+    return {-eulers.y() * DEG_TO_RAD, eulers.x() * DEG_TO_RAD, eulers.z() * DEG_TO_RAD};
 }

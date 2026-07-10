@@ -24,7 +24,8 @@ Eigen::Vector2f OdometryModule::compute_travel(float wheel_travels[NUM_WHEELS],
 
         Eigen::Vector2f measured_travel = wheel.direction * wheel_travels[i];
 
-        Eigen::Vector2f rotation_travel = wheel.location.unitOrthogonal() * angle_change;
+        // angle_change is compass-style clockwise-positive.
+        Eigen::Vector2f rotation_travel = -wheel.location.unitOrthogonal() * angle_change;
 
         if (measured_travel.squaredNorm() == 0.0) {
             actual_travels[i] = 0.0;
@@ -46,8 +47,9 @@ Eigen::Vector2f OdometryModule::compute_travel(float wheel_travels[NUM_WHEELS],
         float sin_coef = sinf(angle_change) / angle_change;
         float cos_coef = (1.0 - cosf(angle_change)) / angle_change;
 
-        bend_matrix << sin_coef, -cos_coef,
-            /*      */ cos_coef, sin_coef;
+        // Compass-style clockwise-positive motion integration.
+        bend_matrix << sin_coef, cos_coef,
+            /*      */ -cos_coef, sin_coef;
     }
 
     return bend_matrix *

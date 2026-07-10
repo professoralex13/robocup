@@ -28,12 +28,9 @@ PositionTrackingTask::PositionTrackingTask(ImuTask *imu_task, DriveTrainTask *dr
 void PositionTrackingTask::setup() {
     this->last_left_wheel_position = drive_train_task->get_left_wheel_position();
     this->last_right_wheel_position = drive_train_task->get_right_wheel_position();
-    this->last_heading = -imu_task->get_euler_angles().y();
+    this->last_heading = imu_task->get_euler_angles().y();
 
-    this->current_pose = {
-        .position = Eigen::Vector2f::Zero(),
-        .heading = this->last_heading,
-    };
+    this->current_pose = {.position = Eigen::Vector2f::Zero(), .heading = this->last_heading};
 
     this->mcl.set_initial_pose(this->current_pose, 0.06f, 0.05f);
     this->initialized = true;
@@ -52,7 +49,7 @@ void PositionTrackingTask::loop() {
 
     float wheel_travels[2] = {left_change * WHEEL_RADIUS_MM, right_change * WHEEL_RADIUS_MM};
 
-    float current_heading = -imu_task->get_euler_angles().y();
+    float current_heading = imu_task->get_euler_angles().y();
 
     float heading_change = diff_angle(last_heading, current_heading);
 

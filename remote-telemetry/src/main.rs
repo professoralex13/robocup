@@ -276,15 +276,25 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
             let heading_sin = heading.sin();
             let heading_cos = heading.cos();
 
+            // Heading convention used everywhere in this viewer:
+            // 0 rad means robot-forward points toward +Y on the field.
+            // Positive heading is clockwise, like a compass.
+            let robot_frame_to_world = |robot_x_m: f32, robot_y_m: f32| -> (f32, f32) {
+                // Compass-style clockwise-positive rotation.
+                let world_x =
+                    telemetry.position_x + heading_cos * robot_x_m + heading_sin * robot_y_m;
+                let world_y =
+                    telemetry.position_y - heading_sin * robot_x_m + heading_cos * robot_y_m;
+
+                (world_x, world_y)
+            };
+
             for point in telemetry.points {
                 let lidar_x_robot_m = point.x as f32 / 1000.0;
                 let lidar_y_robot_m = point.y as f32 / 1000.0;
 
-                let lidar_x_world = telemetry.position_x + heading_cos * lidar_x_robot_m
-                    - heading_sin * lidar_y_robot_m;
-                let lidar_y_world = telemetry.position_y
-                    + heading_sin * lidar_x_robot_m
-                    + heading_cos * lidar_y_robot_m;
+                let (lidar_x_world, lidar_y_world) =
+                    robot_frame_to_world(lidar_x_robot_m, lidar_y_robot_m);
 
                 let screen = world_to_screen(lidar_x_world, lidar_y_world);
 
@@ -297,6 +307,11 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
 
             let robot_screen = world_to_screen(telemetry.position_x, telemetry.position_y);
             d.draw_circle_v(robot_screen, 6.0, Color::RED);
+
+            let heading_length_m = 0.22f32;
+            let (heading_end_x, heading_end_y) = robot_frame_to_world(0.0, heading_length_m);
+            let heading_end = world_to_screen(heading_end_x, heading_end_y);
+            d.draw_line_ex(robot_screen, heading_end, 3.0, Color::BLUE);
 
             d.draw_text(
                 format!(
@@ -326,7 +341,7 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
 
             d.draw_text(
                 format!(
-                    "X: {:.2}m, Y: {:.2}m",
+                    "X: {:.3}m, Y: {:.3}m",
                     1.0 * telemetry.position_x,
                     1.0 * telemetry.position_y,
                 )

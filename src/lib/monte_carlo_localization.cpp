@@ -50,9 +50,15 @@ void MonteCarloLocalization::predict(const Eigen::Vector2f &robot_travel, float 
 
         float noisy_heading_change = heading_change + this->random_gaussian() * heading_sigma;
 
-        Eigen::Rotation2Df world_rotation(this->particles[i].pose.heading);
+        float heading = this->particles[i].pose.heading;
+        float heading_sin = sinf(heading);
+        float heading_cos = cosf(heading);
 
-        this->particles[i].pose.position += world_rotation * noisy_travel;
+        Eigen::Vector2f world_travel(
+            heading_cos * noisy_travel.x() + heading_sin * noisy_travel.y(),
+            -heading_sin * noisy_travel.x() + heading_cos * noisy_travel.y());
+
+        this->particles[i].pose.position += world_travel;
         this->particles[i].pose.heading =
             wrap_heading(this->particles[i].pose.heading + noisy_heading_change);
     }
@@ -90,8 +96,13 @@ void MonteCarloLocalization::update_beam_model(
                 continue;
             }
 
-            Eigen::Rotation2Df robot_to_world_rotation(particle.pose.heading);
-            Eigen::Vector2f world_direction = robot_to_world_rotation * beam_point.position;
+            float heading = particle.pose.heading;
+            float heading_sin = sinf(heading);
+            float heading_cos = cosf(heading);
+
+            Eigen::Vector2f world_direction(
+                heading_cos * beam_point.position.x() + heading_sin * beam_point.position.y(),
+                -heading_sin * beam_point.position.x() + heading_cos * beam_point.position.y());
 
             float expected_range = this->field_map.raycast(particle.pose.position, world_direction,
                                                            this->lidar_max_range);
