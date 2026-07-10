@@ -1,3 +1,4 @@
+#include "intake_task.hpp"
 #include "lidar.hpp"
 #include "telemetry.hpp"
 #include "user_command.hpp"
@@ -9,15 +10,16 @@ static DriveTrainTask drive_train_task = DriveTrainTask();
 static ImuTask imu_task = ImuTask(&Wire);
 static PositionTrackingTask position_tracking_task =
     PositionTrackingTask(&imu_task, &drive_train_task);
-static TelemetryTask telemetry_task =
-    TelemetryTask(&lidar_task, &imu_task, &drive_train_task, &position_tracking_task);
-static UserCommandTask user_command_task = UserCommandTask(&drive_train_task);
+static IntakeTask intake_task = IntakeTask();
+// static TelemetryTask telemetry_task =
+//     TelemetryTask(&lidar_task, &imu_task, &drive_train_task, &position_tracking_task);
+// static UserCommandTask user_command_task = UserCommandTask(&drive_train_task);
 
-const size_t NUM_TASKS = 6;
+const size_t NUM_TASKS = 5;
 
-std::array<SchedulerTask *, NUM_TASKS> tasks = {&lidar_task,     &drive_train_task,
-                                                &imu_task,       &position_tracking_task,
-                                                &telemetry_task, &user_command_task};
+std::array<SchedulerTask *, NUM_TASKS> tasks = {
+    &lidar_task, &drive_train_task, &imu_task, &position_tracking_task, &intake_task,
+};
 std::array<uint32_t, NUM_TASKS> next_runs = {0};
 
 struct TimingData {
@@ -34,11 +36,10 @@ std::array<TimingData, NUM_TASKS> task_timing_data = {{{
     0,
 }}};
 
-#define LOG_TASK_STATS false
+#define LOG_TASK_STATS true
 
 void setup() {
     Serial.begin(9600);
-    Serial7.begin(115200);
 
     for (size_t i = 0; i < NUM_TASKS; i++) {
         tasks[i]->setup();
