@@ -29,12 +29,7 @@ TelemetryTask::TelemetryTask(LidarTask *lidar_task, ImuTask *imu_task,
     : SchedulerTask("telemetry_task"), lidar_task(lidar_task), imu_task(imu_task),
       drive_train_task(drive_train_task), position_tracking_task(position_tracking_task) {}
 
-static uint8_t SERIAL_MEMORY[sizeof(TelemetryPacket) + sizeof(TELEMETRY_HEADER)];
-
-void TelemetryTask::setup() {
-    Serial7.begin(115200);
-    Serial7.addMemoryForWrite(SERIAL_MEMORY, sizeof(SERIAL_MEMORY));
-}
+void TelemetryTask::setup() { Serial.begin(921600); }
 
 void TelemetryTask::loop() {
     TelemetryPacket packet;
@@ -61,6 +56,6 @@ void TelemetryTask::loop() {
     packet.position_x = position_tracking_task->get_current_pose().position.x();
     packet.position_y = position_tracking_task->get_current_pose().position.y();
 
-    Serial7.write(TELEMETRY_HEADER, sizeof(TELEMETRY_HEADER));
-    Serial7.write(reinterpret_cast<uint8_t *>(&packet), sizeof(packet));
+    Serial.write(TELEMETRY_HEADER, sizeof(TELEMETRY_HEADER));
+    Serial.write(reinterpret_cast<uint8_t *>(&packet), sizeof(packet));
 }

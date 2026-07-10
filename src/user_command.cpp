@@ -12,14 +12,12 @@ struct __attribute__((packed)) CommandPacket {
     int8_t right_command;
 };
 
-static uint8_t SERIAL_MEMORY[200];
-
-void UserCommandTask::setup() { Serial7.addMemoryForRead(SERIAL_MEMORY, sizeof(SERIAL_MEMORY)); }
+void UserCommandTask::setup() {}
 
 #define COMMAND_TIMEOUT 1000
 
 void UserCommandTask::loop() {
-    if (Serial7.available() < sizeof(COMMAND_HEADER) + sizeof(CommandPacket)) {
+    if (Serial.available() < sizeof(COMMAND_HEADER) + sizeof(CommandPacket)) {
         if (millis() - last_contact > COMMAND_TIMEOUT) {
             drive_train_task->set_commands(0.0, 0.0);
         }
@@ -28,11 +26,11 @@ void UserCommandTask::loop() {
     }
 
     for (int i = 0; i < sizeof(COMMAND_HEADER); i++) {
-        uint8_t c = Serial7.read();
+        uint8_t c = Serial.read();
 
         if (c != COMMAND_HEADER[i]) {
-            while (Serial7.peek() != COMMAND_HEADER[0] && Serial7.available() > 0) {
-                Serial7.read();
+            while (Serial.peek() != COMMAND_HEADER[0] && Serial.available() > 0) {
+                Serial.read();
             }
 
             return;
@@ -43,7 +41,7 @@ void UserCommandTask::loop() {
 
     CommandPacket packet;
 
-    Serial7.readBytes((char *)&packet, sizeof(CommandPacket));
+    Serial.readBytes((char *)&packet, sizeof(CommandPacket));
 
     drive_train_task->set_commands((float)packet.left_command / 100.0,
                                    (float)packet.right_command / 100.0);

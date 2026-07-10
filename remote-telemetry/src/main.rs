@@ -2,7 +2,7 @@ use std::{
     f32::consts::PI,
     io::{BufRead, BufReader, BufWriter, Read, Write},
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use std::sync::Mutex;
@@ -48,7 +48,7 @@ const COMMAND_HEADER: [u8; 10] = [0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22
 static TELEMETRY: Mutex<Option<TelemetryPacket>> = Mutex::new(None);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let port = serialport::new("/dev/ttyACM1", 115200)
+    let port = serialport::new("/dev/ttyACM0", 921600)
         .timeout(Duration::from_secs(100))
         .open()
         .unwrap();
