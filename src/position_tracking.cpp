@@ -15,7 +15,7 @@ PositionTrackingTask::PositionTrackingTask(ImuTask *imu_task, DriveTrainTask *dr
 
 void PositionTrackingTask::setup() {}
 
-#define WHEEL_RADIUS 31.0
+#define WHEEL_RADIUS (31.0 * (54.0 / 18.0))
 
 void PositionTrackingTask::loop() {
     float left_wheel_position = drive_train_task->get_left_wheel_position();

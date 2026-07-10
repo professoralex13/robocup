@@ -14,7 +14,7 @@ class DriveTrainTask : public SchedulerTask {
     static const int RIGHT_MOTOR_ENCODER_PIN_A = 4;
     static const int RIGHT_MOTOR_ENCODER_PIN_B = 5;
 
-    static const int TICKS_PER_REVOLUTION = 2652; // 2800 is for the actual motor we will end
+    static const int TICKS_PER_REVOLUTION = 7426; // 2800 is for the actual motor we will end
                                                   // up using TODO: CHANGE THIS VERY IMPORTANT;
 
     static constexpr float RADIANS_PER_TICK = 2.0 * PI / (float)TICKS_PER_REVOLUTION;
