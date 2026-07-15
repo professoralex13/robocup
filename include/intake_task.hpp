@@ -9,8 +9,8 @@
 class IntakeTask : public SchedulerTask {
   private:
     HerkulexServoBus herkulexBus = HerkulexServoBus(Serial7);
-    HerkulexServo servo_a = HerkulexServo(herkulexBus, 3);
-    HerkulexServo servo_b = HerkulexServo(herkulexBus, 2);
+    HerkulexServo left_servo = HerkulexServo(herkulexBus, 3);
+    HerkulexServo right_servo = HerkulexServo(herkulexBus, 2);
 
     unsigned long last_update = 0;
     unsigned long now = 0;
