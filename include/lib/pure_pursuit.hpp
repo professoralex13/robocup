@@ -1,5 +1,8 @@
-#include "eigen.h"
+#pragma once
+
 #include "odometry.hpp"
+#undef B1
+#include <Eigen/Geometry>
 #include <optional>
 #include <tuple>
 #include <vector>

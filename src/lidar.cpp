@@ -10,17 +10,17 @@ LidarTask::LidarTask() : SchedulerTask("lidar_task") {}
 static uint8_t SERIAL_MEMORY[200];
 
 namespace {
+constexpr float LIDAR_DEG_TO_RAD = 0.01745329252f;
 
 // Lidar extrinsic in robot frame.
 // +X is robot-right, +Y is robot-forward, yaw is compass-style clockwise-positive.
-constexpr float LIDAR_OFFSET_X_METERS = 0.0f;
-constexpr float LIDAR_OFFSET_Y_METERS = 0.0f;
-constexpr float LIDAR_YAW_OFFSET_RADIANS = 0.0f;
+constexpr float LIDAR_OFFSET_X_METERS = 0.08f;
+constexpr float LIDAR_OFFSET_Y_METERS = 0.072f;
+constexpr float LIDAR_YAW_OFFSET_RADIANS = -135.0f * LIDAR_DEG_TO_RAD;
 
 // Ignored angular range in robot frame around +Y forward axis.
 // 0 rad = forward, +pi/2 = right, -pi/2 = left.
 constexpr bool LIDAR_IGNORE_ANGLE_ENABLED = true;
-constexpr float LIDAR_DEG_TO_RAD = 0.01745329252f;
 constexpr float LIDAR_IGNORE_BOUND_A_RADIANS = -135.0f * LIDAR_DEG_TO_RAD;
 constexpr float LIDAR_IGNORE_BOUND_B_RADIANS = 90.0f * LIDAR_DEG_TO_RAD;
 

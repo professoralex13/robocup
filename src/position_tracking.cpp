@@ -13,6 +13,9 @@ constexpr float FIELD_HEIGHT_Y_METERS = 4.9f;
 constexpr float WHEEL_RADIUS_MM = 31.0f * (54.0f / 18.0f);
 constexpr float MM_TO_METERS = 1e-3f;
 
+constexpr float INITIAL_X = 1.2f;
+constexpr float INITIAL_Y = 0.4f;
+
 } // namespace
 
 PositionTrackingTask::PositionTrackingTask(ImuTask *imu_task, DriveTrainTask *drive_train_task,
@@ -30,7 +33,8 @@ void PositionTrackingTask::setup() {
     this->last_right_wheel_position = drive_train_task->get_right_wheel_position();
     this->last_heading = imu_task->get_euler_angles().y();
 
-    this->current_pose = {.position = Eigen::Vector2f::Zero(), .heading = this->last_heading};
+    this->current_pose = {.position = Eigen::Vector2f(INITIAL_X, INITIAL_Y),
+                          .heading = this->last_heading};
 
     this->mcl.set_initial_pose(this->current_pose, 0.06f, 0.05f);
     this->initialized = true;

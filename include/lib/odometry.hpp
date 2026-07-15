@@ -1,6 +1,7 @@
 #pragma once
+#undef B1
 
-#include "eigen.h"
+#include <Eigen/Geometry>
 
 struct Pose {
     Eigen::Vector2f position;
