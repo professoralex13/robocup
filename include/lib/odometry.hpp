@@ -5,6 +5,10 @@
 struct Pose {
     Eigen::Vector2f position;
     float heading;
+
+    Eigen::Vector2f get_direction_vector() {
+        return Eigen::Rotation2Df(90 - heading) * Eigen::Vector2f::UnitX();
+    }
 };
 
 struct TrackingWheel {
