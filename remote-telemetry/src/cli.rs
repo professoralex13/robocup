@@ -2,6 +2,8 @@ use std::env;
 
 use crate::data_source::DataSource;
 
+const DEFAULT_PORT: u16 = 9002;
+
 pub enum RunMode {
     Viewer {
         data_source: DataSource,
@@ -16,8 +18,13 @@ pub fn parse_args() -> RunMode {
     let args: Vec<String> = env::args().collect();
     let serial_port = get_arg_value(&args, "--serial").unwrap_or("/dev/ttyACM0".to_string());
 
+    let port = get_arg_value(&args, "--port").unwrap_or(DEFAULT_PORT.to_string());
+
     if has_flag(&args, "--bridge") {
-        let listen_addr = get_arg_value(&args, "--listen").unwrap_or("0.0.0.0:9002".to_string());
+        let ip = get_arg_value(&args, "--listen").unwrap_or("0.0.0.0".to_string());
+
+        let listen_addr = format!("{ip}:{port}");
+
         return RunMode::Bridge {
             serial_port,
             listen_addr,
@@ -25,7 +32,7 @@ pub fn parse_args() -> RunMode {
     }
 
     let data_source = match get_arg_value(&args, "--ws") {
-        Some(url) => DataSource::WebSocket(url),
+        Some(url) => DataSource::WebSocket(format!("ws://{url}:{port}")),
         None => DataSource::Serial(serial_port),
     };
 
