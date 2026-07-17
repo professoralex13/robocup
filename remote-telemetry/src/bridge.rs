@@ -1,72 +1,73 @@
-use std::{
-    io::{Read, Write},
+use futures_util::{SinkExt, StreamExt};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
-    time::Duration,
+    select,
 };
-
-use serialport::SerialPort;
-use tungstenite::{Message, accept};
+use tokio_serial::SerialPortBuilderExt;
+use tokio_tungstenite::{accept_async, tungstenite::Message};
 
 pub fn run_bridge(serial_port: &str, listen_addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let port = serialport::new(serial_port, 921600)
-        .timeout(Duration::from_millis(20))
-        .open()?;
-    let write_port = port.try_clone().expect("Failed to clone port");
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
 
-    let mut reader = port;
-    let mut writer = write_port;
+    runtime.block_on(run_bridge_async(serial_port, listen_addr))
+}
 
-    let listener = TcpListener::bind(listen_addr)?;
+async fn run_bridge_async(
+    serial_port: &str,
+    listen_addr: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let listener = TcpListener::bind(listen_addr).await?;
     println!("Telemetry bridge listening on ws://{listen_addr}");
 
     loop {
-        let (stream, addr) = listener.accept()?;
+        let (stream, addr) = listener.accept().await?;
         println!("Client connected: {addr}");
 
-        if let Err(error) = stream_serial_to_client(stream, &mut reader, &mut writer) {
+        if let Err(error) = stream_serial_to_client(stream, serial_port).await {
             eprintln!("Client disconnected: {error}");
         }
     }
 }
 
-fn stream_serial_to_client(
+async fn stream_serial_to_client(
     stream: TcpStream,
-    reader: &mut Box<dyn SerialPort>,
-    writer: &mut Box<dyn SerialPort>,
+    serial_port: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut websocket = accept(stream)?;
-    websocket.get_mut().set_nonblocking(true)?;
+    let websocket = accept_async(stream).await?;
+    let serial = tokio_serial::new(serial_port, 921600).open_native_async()?;
+
+    let (mut websocket_writer, mut websocket_reader) = websocket.split();
+    let (mut serial_reader, mut serial_writer) = tokio::io::split(serial);
+
     let mut serial_buf = [0u8; 4096];
 
     loop {
-        loop {
-            match websocket.read() {
-                Ok(Message::Binary(payload)) => {
-                    if !payload.is_empty() {
-                        writer.write_all(payload.as_slice())?;
-                        writer.flush()?;
+        select! {
+            message = websocket_reader.next() => {
+                match message {
+                    Some(Ok(Message::Binary(payload))) => {
+                        if !payload.is_empty() {
+                            serial_writer.write_all(payload.as_ref()).await?;
+                            serial_writer.flush().await?;
+                        }
                     }
+                    Some(Ok(Message::Close(_))) => return Ok(()),
+                    Some(Ok(_)) => {}
+                    Some(Err(error)) => return Err(Box::new(error)),
+                    None => return Ok(()),
                 }
-                Ok(Message::Close(_)) => return Ok(()),
-                Ok(_) => {}
-                Err(tungstenite::Error::Io(error))
-                    if error.kind() == std::io::ErrorKind::WouldBlock =>
-                {
-                    break;
+            }
+            serial_result = serial_reader.read(&mut serial_buf) => {
+                let read_count = serial_result?;
+                if read_count > 0 {
+                    websocket_writer
+                        .send(Message::Binary(serial_buf[..read_count].to_vec().into()))
+                        .await?;
                 }
-                Err(error) => return Err(Box::new(error)),
             }
-        }
-
-        match reader.read(&mut serial_buf) {
-            Ok(0) => {}
-            Ok(read_count) => {
-                websocket.send(Message::Binary(serial_buf[..read_count].to_vec().into()))?;
-            }
-            Err(error)
-                if error.kind() == std::io::ErrorKind::TimedOut
-                    || error.kind() == std::io::ErrorKind::WouldBlock => {}
-            Err(error) => return Err(Box::new(error)),
         }
     }
 }

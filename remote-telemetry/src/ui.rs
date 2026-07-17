@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, io::Write};
+use std::f32::consts::PI;
 
 use raylib::prelude::*;
 use zerocopy::IntoBytes;
@@ -57,18 +57,17 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             right_command,
         };
 
+        let mut payload = Vec::with_capacity(COMMAND_HEADER.len() + packet.as_bytes().len());
+        payload.extend_from_slice(&COMMAND_HEADER);
+        payload.extend_from_slice(packet.as_bytes());
+
         match command_sink {
-            CommandSink::Serial(writer) => {
-                writer.write_all(&COMMAND_HEADER)?;
-                writer.write_all(packet.as_bytes())?;
-                writer.flush()?;
+            CommandSink::Serial(sender) => {
+                if sender.send(payload).is_err() {
+                    *command_sink = CommandSink::None;
+                }
             }
             CommandSink::WebSocket(sender) => {
-                let mut payload =
-                    Vec::with_capacity(COMMAND_HEADER.len() + packet.as_bytes().len());
-                payload.extend_from_slice(&COMMAND_HEADER);
-                payload.extend_from_slice(packet.as_bytes());
-
                 if sender.send(payload).is_err() {
                     *command_sink = CommandSink::None;
                 }

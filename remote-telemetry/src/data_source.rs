@@ -1,9 +1,4 @@
-use std::{
-    io::{BufWriter, Read},
-    sync::mpsc::{self, Sender, TryRecvError},
-    thread,
-    time::Duration,
-};
+use std::{thread, time::Duration};
 
 use crate::{
     protocol::{
@@ -12,9 +7,11 @@ use crate::{
     },
     telemetry_state::{TELEMETRY, TypedValue},
 };
-use serialport::SerialPort;
-use tungstenite::stream::MaybeTlsStream;
-use tungstenite::{Message, connect};
+use futures_util::{SinkExt, StreamExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::mpsc;
+use tokio_serial::SerialPortBuilderExt;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 const MAX_INCOMING_STREAM_BYTES: usize = 256 * 1024;
 
@@ -24,8 +21,8 @@ pub enum DataSource {
 }
 
 pub enum CommandSink {
-    Serial(BufWriter<Box<dyn SerialPort>>),
-    WebSocket(Sender<Vec<u8>>),
+    Serial(mpsc::UnboundedSender<Vec<u8>>),
+    WebSocket(mpsc::UnboundedSender<Vec<u8>>),
     None,
 }
 
@@ -39,137 +36,161 @@ pub fn initialize_data_source(
 }
 
 fn start_serial_mode(serial_port: &str) -> Result<CommandSink, Box<dyn std::error::Error>> {
-    let port = serialport::new(serial_port, 921600)
-        .timeout(Duration::from_millis(20))
-        .open()?;
-
-    let write_port = port.try_clone().expect("Failed to clone port");
-    let mut reader = port;
+    let serial_port = serial_port.to_string();
+    let (command_tx, command_rx) = mpsc::unbounded_channel::<Vec<u8>>();
 
     thread::spawn(move || {
-        let mut incoming_stream = Vec::<u8>::with_capacity(32 * 1024);
-        let mut read_buf = [0u8; 4096];
+        let runtime = match tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+        {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                eprintln!("Failed to create Tokio runtime: {error}");
+                return;
+            }
+        };
 
-        loop {
-            match reader.read(&mut read_buf) {
-                Ok(0) => {}
-                Ok(read_count) => {
-                    incoming_stream.extend_from_slice(&read_buf[..read_count]);
-                    consume_stream_frames(&mut incoming_stream);
-                }
-                Err(error) => {
-                    if error.kind() != std::io::ErrorKind::TimedOut
-                        && error.kind() != std::io::ErrorKind::WouldBlock
-                    {
-                        eprintln!("Serial read error: {error}");
-                        thread::sleep(Duration::from_millis(100));
+        runtime.block_on(run_serial_client(serial_port, command_rx));
+    });
+
+    Ok(CommandSink::Serial(command_tx))
+}
+
+async fn run_serial_client(serial_port: String, mut command_rx: mpsc::UnboundedReceiver<Vec<u8>>) {
+    let mut incoming_stream = Vec::<u8>::with_capacity(32 * 1024);
+
+    loop {
+        match tokio_serial::new(serial_port.as_str(), 921600).open_native_async() {
+            Ok(serial) => {
+                let (mut serial_reader, mut serial_writer) = tokio::io::split(serial);
+                let mut read_buf = [0u8; 4096];
+                let mut should_reconnect = false;
+
+                while !should_reconnect {
+                    tokio::select! {
+                        command = command_rx.recv() => {
+                            match command {
+                                Some(payload) => {
+                                    if let Err(error) = serial_writer.write_all(payload.as_slice()).await {
+                                        eprintln!("Serial write error: {error}");
+                                        should_reconnect = true;
+                                    } else if let Err(error) = serial_writer.flush().await {
+                                        eprintln!("Serial flush error: {error}");
+                                        should_reconnect = true;
+                                    }
+                                }
+                                None => return,
+                            }
+                        }
+                        read_result = serial_reader.read(&mut read_buf) => {
+                            match read_result {
+                                Ok(0) => {}
+                                Ok(read_count) => {
+                                    incoming_stream.extend_from_slice(&read_buf[..read_count]);
+                                    consume_stream_frames(&mut incoming_stream);
+                                }
+                                Err(error) => {
+                                    eprintln!("Serial read error: {error}");
+                                    should_reconnect = true;
+                                }
+                            }
+                        }
                     }
                 }
             }
+            Err(error) => {
+                eprintln!("Serial open error: {error}");
+            }
         }
-    });
 
-    Ok(CommandSink::Serial(BufWriter::new(write_port)))
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
 }
 
 fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Error>> {
     let url = url.to_string();
-    let (command_tx, command_rx) = mpsc::channel::<Vec<u8>>();
+    let (command_tx, command_rx) = mpsc::unbounded_channel::<Vec<u8>>();
 
     thread::spawn(move || {
-        let mut incoming_serial_stream = Vec::<u8>::with_capacity(16 * 1024);
+        let runtime = match tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+        {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                eprintln!("Failed to create Tokio runtime: {error}");
+                return;
+            }
+        };
 
-        loop {
-            match connect(url.as_str()) {
-                Ok((mut websocket, _)) => {
-                    if let MaybeTlsStream::Plain(stream) = websocket.get_mut() {
-                        if let Err(error) = stream.set_nonblocking(true) {
-                            eprintln!("Websocket nonblocking setup error: {error}");
-                            thread::sleep(Duration::from_millis(500));
-                            continue;
-                        }
-                    }
+        runtime.block_on(run_websocket_client(url, command_rx));
+    });
 
-                    println!("Connected to telemetry bridge at {url}");
+    Ok(CommandSink::WebSocket(command_tx))
+}
 
-                    loop {
-                        let mut should_reconnect = false;
-                        let mut had_receive_data = false;
+async fn run_websocket_client(url: String, mut command_rx: mpsc::UnboundedReceiver<Vec<u8>>) {
+    let mut incoming_serial_stream = Vec::<u8>::with_capacity(16 * 1024);
 
-                        loop {
-                            match command_rx.try_recv() {
-                                Ok(payload) => {
-                                    if let Err(error) =
-                                        websocket.send(Message::Binary(payload.into()))
-                                    {
+    loop {
+        match connect_async(url.as_str()).await {
+            Ok((websocket, _)) => {
+                println!("Connected to telemetry bridge at {url}");
+                let (mut websocket_writer, mut websocket_reader) = websocket.split();
+
+                let mut should_reconnect = false;
+
+                while !should_reconnect {
+                    tokio::select! {
+                        command = command_rx.recv() => {
+                            match command {
+                                Some(payload) => {
+                                    if let Err(error) = websocket_writer.send(Message::Binary(payload.into())).await {
                                         eprintln!("Websocket send error: {error}");
                                         should_reconnect = true;
-                                        break;
                                     }
                                 }
-                                Err(TryRecvError::Empty) => break,
-                                Err(TryRecvError::Disconnected) => return,
+                                None => return,
                             }
                         }
-
-                        if should_reconnect {
-                            break;
-                        }
-
-                        loop {
-                            match websocket.read() {
-                                Ok(Message::Binary(payload)) => {
-                                    had_receive_data = true;
-                                    incoming_serial_stream.extend_from_slice(payload.as_slice());
+                        incoming = websocket_reader.next() => {
+                            match incoming {
+                                Some(Ok(Message::Binary(payload))) => {
+                                    incoming_serial_stream.extend_from_slice(payload.as_ref());
 
                                     if incoming_serial_stream.len() > MAX_INCOMING_STREAM_BYTES {
-                                        let keep =
-                                            TELEMETRY_FRAME_HEADER_LEN + TELEMETRY_PREAMBLE.len();
-                                        let drop_len =
-                                            incoming_serial_stream.len().saturating_sub(keep);
+                                        let keep = TELEMETRY_FRAME_HEADER_LEN + TELEMETRY_PREAMBLE.len();
+                                        let drop_len = incoming_serial_stream.len().saturating_sub(keep);
                                         incoming_serial_stream.drain(..drop_len);
                                     }
 
                                     consume_stream_frames(&mut incoming_serial_stream);
                                 }
-                                Ok(Message::Close(_)) => {
+                                Some(Ok(Message::Close(_))) => {
                                     eprintln!("Websocket closed by peer");
                                     should_reconnect = true;
-                                    break;
                                 }
-                                Ok(_) => {}
-                                Err(tungstenite::Error::Io(error))
-                                    if error.kind() == std::io::ErrorKind::WouldBlock =>
-                                {
-                                    break;
-                                }
-                                Err(error) => {
+                                Some(Ok(_)) => {}
+                                Some(Err(error)) => {
                                     eprintln!("Websocket receive error: {error}");
                                     should_reconnect = true;
-                                    break;
+                                }
+                                None => {
+                                    should_reconnect = true;
                                 }
                             }
                         }
-
-                        if should_reconnect {
-                            break;
-                        }
-
-                        if !had_receive_data {
-                            thread::sleep(Duration::from_millis(1));
-                        }
                     }
                 }
-                Err(error) => {
-                    eprintln!("Websocket connect error: {error}");
-                }
             }
-
-            thread::sleep(Duration::from_millis(500));
+            Err(error) => {
+                eprintln!("Websocket connect error: {error}");
+            }
         }
-    });
 
-    Ok(CommandSink::WebSocket(command_tx))
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
 }
 
 fn consume_stream_frames(stream: &mut Vec<u8>) {
