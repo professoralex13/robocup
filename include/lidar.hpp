@@ -5,7 +5,7 @@
 #include <HardwareSerial.h>
 #include <etl/deque.h>
 
-#define LIDAR_POINTS_HISTORY 1500
+#define LIDAR_POINTS_HISTORY 312
 
 class LidarTask : public SchedulerTask {
   private:

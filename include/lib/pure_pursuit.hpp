@@ -2,6 +2,7 @@
 
 #include "odometry.hpp"
 #undef B1
+#include "pid.hpp"
 #include <Eigen/Geometry>
 #include <optional>
 #include <tuple>
@@ -16,11 +17,10 @@ class PurePursuit {
 
     float remaining_distance = 0.0;
 
-    std::tuple<float, float> compute_errors(Pose current_pose);
-
   public:
     PurePursuit(float look_ahead_distance);
 
+    std::tuple<float, float> compute_errors(Pose current_pose);
     void set_current_path(std::vector<Eigen::Vector2f> positions, bool backwards = false);
     void set_drive_direction(bool backwards);
 };

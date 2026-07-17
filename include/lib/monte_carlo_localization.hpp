@@ -11,7 +11,6 @@
 class MonteCarloLocalization {
   public:
     static constexpr size_t NUM_PARTICLES = 128;
-    static constexpr size_t LIDAR_HISTORY_CAPACITY = 1500;
 
     explicit MonteCarloLocalization(const FieldMap &field_map);
 
@@ -24,7 +23,7 @@ class MonteCarloLocalization {
     void predict(const Eigen::Vector2f &robot_travel, float heading_change);
 
     // Measurement step using lidar points and a beam model against the field map.
-    void update_beam_model(const etl::deque<LidarResponsePoint, LIDAR_HISTORY_CAPACITY> &points);
+    void update_beam_model(const etl::deque<LidarResponsePoint, 312> &points);
 
     Pose get_estimated_pose() const;
     float get_position_uncertainty() const;

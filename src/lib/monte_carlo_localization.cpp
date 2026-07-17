@@ -66,8 +66,7 @@ void MonteCarloLocalization::predict(const Eigen::Vector2f &robot_travel, float 
 
 // ----- Particle filter measurement step (beam model) -----
 
-void MonteCarloLocalization::update_beam_model(
-    const etl::deque<LidarResponsePoint, LIDAR_HISTORY_CAPACITY> &points) {
+void MonteCarloLocalization::update_beam_model(const etl::deque<LidarResponsePoint, 312> &points) {
     if (points.empty() || this->field_map.wall_count() == 0) {
         this->compute_estimated_pose();
         return;

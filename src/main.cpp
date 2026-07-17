@@ -4,22 +4,28 @@
 #include "user_command.hpp"
 #include <Arduino.h>
 #include <memory>
+#include <motion_control_task.hpp>
 
 static LidarTask lidar_task = LidarTask();
 static DriveTrainTask drive_train_task = DriveTrainTask();
 static ImuTask imu_task = ImuTask(&Wire);
 static PositionTrackingTask position_tracking_task =
     PositionTrackingTask(&imu_task, &drive_train_task, &lidar_task);
+
+static MotionControlTask motion_control_task =
+    MotionControlTask(&drive_train_task, &position_tracking_task);
+
 static IntakeTask intake_task = IntakeTask();
-static TelemetryTask telemetry_task =
-    TelemetryTask(&lidar_task, &imu_task, &drive_train_task, &position_tracking_task);
+
+static TelemetryTask telemetry_task = TelemetryTask(&lidar_task, &imu_task, &drive_train_task,
+                                                    &position_tracking_task, &motion_control_task);
 static UserCommandTask user_command_task = UserCommandTask(&drive_train_task);
 
-const size_t NUM_TASKS = 7;
+const size_t NUM_TASKS = 8;
 
 std::array<SchedulerTask *, NUM_TASKS> tasks = {
-    &lidar_task,  &drive_train_task, &imu_task,          &position_tracking_task,
-    &intake_task, &telemetry_task,   &user_command_task,
+    &lidar_task,          &drive_train_task, &imu_task,       &position_tracking_task,
+    &motion_control_task, &intake_task,      &telemetry_task, &user_command_task,
 };
 std::array<uint32_t, NUM_TASKS> next_runs = {0};
 

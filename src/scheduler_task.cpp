@@ -4,6 +4,8 @@
 SchedulerTask::SchedulerTask(const char *task_name) : task_name(task_name) {}
 
 void SchedulerTask::log(const char *format, ...) {
+    return;
+
     Serial.printf("[LOG][%s]: ", task_name);
 
     va_list args;
@@ -16,6 +18,8 @@ void SchedulerTask::log(const char *format, ...) {
 }
 
 void SchedulerTask::log_err(const char *format, ...) {
+    return;
+
     Serial.printf("[ERR][%s]: ", task_name);
 
     va_list args;

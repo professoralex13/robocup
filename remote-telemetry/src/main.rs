@@ -42,6 +42,9 @@ struct TelemetryPacket {
     position_x: f32,
     position_y: f32,
     position_uncertainty: f32,
+
+    drive_error: f32,
+    turn_error: f32,
 }
 
 #[repr(C, packed)]
@@ -282,6 +285,8 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
             let position_x = telemetry.position_x;
             let position_y = telemetry.position_y;
             let position_uncertainty = telemetry.position_uncertainty;
+            let drive_error = telemetry.drive_error;
+            let turn_error = telemetry.turn_error;
 
             // Heading convention used everywhere in this viewer:
             // 0 rad means robot-forward points toward +Y on the field.
@@ -362,6 +367,14 @@ fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Erro
                 20,
                 Color::BLACK,
             );
+
+            d.draw_text(
+                format!("Drive Error: {drive_error:.3}m, Turn Error: {turn_error:.3}rad").as_str(),
+                20,
+                120,
+                20,
+                Color::BLACK,
+            )
         } else {
             d.draw_text("No Telemetry", 20, 20, 20, Color::BLACK);
         }

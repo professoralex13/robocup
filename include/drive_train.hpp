@@ -30,9 +30,6 @@ class DriveTrainTask : public SchedulerTask {
     Encoder left_encoder = Encoder(LEFT_MOTOR_ENCODER_PIN_A, LEFT_MOTOR_ENCODER_PIN_B);
     Encoder right_encoder = Encoder(RIGHT_MOTOR_ENCODER_PIN_A, RIGHT_MOTOR_ENCODER_PIN_B);
 
-    float left_command = 0.0;
-    float right_command = 0.0;
-
     float left_velocity = 0.0;
     float right_velocity = 0.0;
 
@@ -41,6 +38,9 @@ class DriveTrainTask : public SchedulerTask {
 
     void setup();
     void loop();
+
+    float left_command = 0.0;
+    float right_command = 0.0;
 
     void set_commands(float left, float right);
 
