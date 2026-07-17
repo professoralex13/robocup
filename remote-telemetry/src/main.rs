@@ -7,6 +7,8 @@ mod ui;
 
 use cli::RunMode;
 
+pub const BAUD_RATE: u32 = 921600;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli::parse_args() {
         RunMode::Bridge {

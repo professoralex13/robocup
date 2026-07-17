@@ -1,6 +1,7 @@
 use std::{thread, time::Duration};
 
 use crate::{
+    BAUD_RATE,
     protocol::{
         TELEMETRY_FRAME_HEADER_LEN, TELEMETRY_PREAMBLE, TELEMETRY_VERSION, TelemetryFrame,
         parse_frame,
@@ -26,6 +27,9 @@ pub enum CommandSink {
     None,
 }
 
+/// Starts communication through either direct serial, or via a websocket
+///
+/// Returns a CommandSink for sending data to the Teensy
 pub fn initialize_data_source(
     data_source: DataSource,
 ) -> Result<CommandSink, Box<dyn std::error::Error>> {
@@ -35,6 +39,9 @@ pub fn initialize_data_source(
     }
 }
 
+/// Starts direct serial communication with the Teensy
+///
+/// Returns a CommandSink for sending data do the Teensy
 fn start_serial_mode(serial_port: &str) -> Result<CommandSink, Box<dyn std::error::Error>> {
     let serial_port = serial_port.to_string();
     let (command_tx, command_rx) = mpsc::unbounded_channel::<Vec<u8>>();
@@ -61,9 +68,10 @@ async fn run_serial_client(serial_port: String, mut command_rx: mpsc::UnboundedR
     let mut incoming_stream = Vec::<u8>::with_capacity(32 * 1024);
 
     loop {
-        match tokio_serial::new(serial_port.as_str(), 921600).open_native_async() {
+        match tokio_serial::new(serial_port.as_str(), BAUD_RATE).open_native_async() {
             Ok(serial) => {
                 let (mut serial_reader, mut serial_writer) = tokio::io::split(serial);
+
                 let mut read_buf = [0u8; 4096];
                 let mut should_reconnect = false;
 
@@ -88,6 +96,7 @@ async fn run_serial_client(serial_port: String, mut command_rx: mpsc::UnboundedR
                                 Ok(0) => {}
                                 Ok(read_count) => {
                                     incoming_stream.extend_from_slice(&read_buf[..read_count]);
+
                                     consume_stream_frames(&mut incoming_stream);
                                 }
                                 Err(error) => {
