@@ -82,6 +82,8 @@ fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Er
     let (command_tx, command_rx) = mpsc::channel::<Vec<u8>>();
 
     thread::spawn(move || {
+        let mut incoming_serial_stream = Vec::<u8>::with_capacity(16 * 1024);
+
         loop {
             match connect(url.as_str()) {
                 Ok((mut websocket, _)) => {
@@ -113,13 +115,13 @@ fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Er
 
                         match websocket.read() {
                             Ok(Message::Binary(payload)) => {
-                                if payload.len() == std::mem::size_of::<TelemetryPacket>() {
-                                    if let Ok(packet) =
-                                        TelemetryPacket::ref_from_bytes(payload.as_slice())
-                                    {
-                                        let mut lock = TELEMETRY.lock().unwrap();
-                                        *lock = Some(*packet);
-                                    }
+                                incoming_serial_stream.extend_from_slice(payload.as_slice());
+
+                                while let Some(packet) =
+                                    extract_telemetry_packet(&mut incoming_serial_stream)
+                                {
+                                    let mut lock = TELEMETRY.lock().unwrap();
+                                    *lock = Some(packet);
                                 }
                             }
                             Ok(Message::Close(_)) => {
@@ -148,4 +150,42 @@ fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Er
     });
 
     Ok(CommandSink::WebSocket(command_tx))
+}
+
+fn extract_telemetry_packet(stream: &mut Vec<u8>) -> Option<TelemetryPacket> {
+    let header_len = TELEMETRY_HEADER.len();
+    let payload_len = std::mem::size_of::<TelemetryPacket>();
+    let frame_len = header_len + payload_len;
+
+    let header_pos = stream
+        .windows(header_len)
+        .position(|window| window == TELEMETRY_HEADER.as_slice());
+
+    let header_pos = match header_pos {
+        Some(position) => position,
+        None => {
+            let keep_len = header_len.saturating_sub(1);
+            if stream.len() > keep_len {
+                let start = stream.len() - keep_len;
+                stream.drain(..start);
+            }
+            return None;
+        }
+    };
+
+    if header_pos > 0 {
+        stream.drain(..header_pos);
+    }
+
+    if stream.len() < frame_len {
+        return None;
+    }
+
+    let packet = TelemetryPacket::ref_from_bytes(&stream[header_len..frame_len])
+        .ok()
+        .copied();
+
+    stream.drain(..frame_len);
+
+    packet
 }
