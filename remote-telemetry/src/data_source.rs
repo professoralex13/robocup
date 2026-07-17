@@ -1,19 +1,22 @@
 use std::{
-    io::{BufRead, BufReader, BufWriter, Read},
+    io::{BufWriter, Read},
     sync::mpsc::{self, Sender, TryRecvError},
     thread,
     time::Duration,
 };
 
+use crate::{
+    protocol::{
+        TELEMETRY_FRAME_HEADER_LEN, TELEMETRY_PREAMBLE, TELEMETRY_VERSION, TelemetryFrame,
+        parse_frame,
+    },
+    telemetry_state::{TELEMETRY, TypedValue},
+};
 use serialport::SerialPort;
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, connect};
-use zerocopy::FromBytes;
 
-use crate::{
-    protocol::{TELEMETRY_HEADER, TelemetryPacket},
-    telemetry_state::TELEMETRY,
-};
+const MAX_INCOMING_STREAM_BYTES: usize = 256 * 1024;
 
 pub enum DataSource {
     Serial(String),
@@ -35,40 +38,32 @@ pub fn initialize_data_source(
     }
 }
 
-pub fn read_telemetry_packet(
-    reader: &mut BufReader<Box<dyn SerialPort>>,
-) -> Result<TelemetryPacket, Box<dyn std::error::Error>> {
-    let mut buf = [0u8; std::mem::size_of::<TelemetryPacket>()];
-
-    for x in TELEMETRY_HEADER {
-        reader.skip_until(x)?;
-    }
-
-    reader.read_exact(&mut buf)?;
-
-    let telemetry = TelemetryPacket::read_from_bytes(&buf).unwrap();
-
-    Ok(telemetry)
-}
-
 fn start_serial_mode(serial_port: &str) -> Result<CommandSink, Box<dyn std::error::Error>> {
     let port = serialport::new(serial_port, 921600)
-        .timeout(Duration::from_secs(100))
+        .timeout(Duration::from_millis(20))
         .open()?;
 
     let write_port = port.try_clone().expect("Failed to clone port");
-    let mut reader = BufReader::new(port);
+    let mut reader = port;
 
     thread::spawn(move || {
+        let mut incoming_stream = Vec::<u8>::with_capacity(32 * 1024);
+        let mut read_buf = [0u8; 4096];
+
         loop {
-            match read_telemetry_packet(&mut reader) {
-                Ok(telemetry) => {
-                    let mut lock = TELEMETRY.lock().unwrap();
-                    *lock = Some(telemetry);
+            match reader.read(&mut read_buf) {
+                Ok(0) => {}
+                Ok(read_count) => {
+                    incoming_stream.extend_from_slice(&read_buf[..read_count]);
+                    consume_stream_frames(&mut incoming_stream);
                 }
                 Err(error) => {
-                    eprintln!("Serial read error: {error}");
-                    thread::sleep(Duration::from_millis(100));
+                    if error.kind() != std::io::ErrorKind::TimedOut
+                        && error.kind() != std::io::ErrorKind::WouldBlock
+                    {
+                        eprintln!("Serial read error: {error}");
+                        thread::sleep(Duration::from_millis(100));
+                    }
                 }
             }
         }
@@ -98,6 +93,9 @@ fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Er
                     println!("Connected to telemetry bridge at {url}");
 
                     loop {
+                        let mut should_reconnect = false;
+                        let mut had_receive_data = false;
+
                         loop {
                             match command_rx.try_recv() {
                                 Ok(payload) => {
@@ -105,6 +103,7 @@ fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Er
                                         websocket.send(Message::Binary(payload.into()))
                                     {
                                         eprintln!("Websocket send error: {error}");
+                                        should_reconnect = true;
                                         break;
                                     }
                                 }
@@ -113,31 +112,52 @@ fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Er
                             }
                         }
 
-                        match websocket.read() {
-                            Ok(Message::Binary(payload)) => {
-                                incoming_serial_stream.extend_from_slice(payload.as_slice());
+                        if should_reconnect {
+                            break;
+                        }
 
-                                while let Some(packet) =
-                                    extract_telemetry_packet(&mut incoming_serial_stream)
-                                {
-                                    let mut lock = TELEMETRY.lock().unwrap();
-                                    *lock = Some(packet);
+                        loop {
+                            match websocket.read() {
+                                Ok(Message::Binary(payload)) => {
+                                    had_receive_data = true;
+                                    incoming_serial_stream.extend_from_slice(payload.as_slice());
+
+                                    if incoming_serial_stream.len() > MAX_INCOMING_STREAM_BYTES {
+                                        let keep =
+                                            TELEMETRY_FRAME_HEADER_LEN + TELEMETRY_PREAMBLE.len();
+                                        let drop_len =
+                                            incoming_serial_stream.len().saturating_sub(keep);
+                                        incoming_serial_stream.drain(..drop_len);
+                                    }
+
+                                    consume_stream_frames(&mut incoming_serial_stream);
                                 }
-                            }
-                            Ok(Message::Close(_)) => {
-                                eprintln!("Websocket closed by peer");
-                                break;
-                            }
-                            Ok(_) => {}
-                            Err(tungstenite::Error::Io(error))
-                                if error.kind() == std::io::ErrorKind::WouldBlock => {}
-                            Err(error) => {
-                                eprintln!("Websocket receive error: {error}");
-                                break;
+                                Ok(Message::Close(_)) => {
+                                    eprintln!("Websocket closed by peer");
+                                    should_reconnect = true;
+                                    break;
+                                }
+                                Ok(_) => {}
+                                Err(tungstenite::Error::Io(error))
+                                    if error.kind() == std::io::ErrorKind::WouldBlock =>
+                                {
+                                    break;
+                                }
+                                Err(error) => {
+                                    eprintln!("Websocket receive error: {error}");
+                                    should_reconnect = true;
+                                    break;
+                                }
                             }
                         }
 
-                        thread::sleep(Duration::from_millis(5));
+                        if should_reconnect {
+                            break;
+                        }
+
+                        if !had_receive_data {
+                            thread::sleep(Duration::from_millis(1));
+                        }
                     }
                 }
                 Err(error) => {
@@ -152,19 +172,23 @@ fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Er
     Ok(CommandSink::WebSocket(command_tx))
 }
 
-fn extract_telemetry_packet(stream: &mut Vec<u8>) -> Option<TelemetryPacket> {
-    let header_len = TELEMETRY_HEADER.len();
-    let payload_len = std::mem::size_of::<TelemetryPacket>();
-    let frame_len = header_len + payload_len;
+fn consume_stream_frames(stream: &mut Vec<u8>) {
+    while let Some(frame) = extract_telemetry_frame(stream) {
+        apply_frame(frame);
+    }
+}
 
-    let header_pos = stream
-        .windows(header_len)
-        .position(|window| window == TELEMETRY_HEADER.as_slice());
+fn extract_telemetry_frame(stream: &mut Vec<u8>) -> Option<TelemetryFrame> {
+    let preamble_len = TELEMETRY_PREAMBLE.len();
 
-    let header_pos = match header_pos {
+    let preamble_pos = stream
+        .windows(preamble_len)
+        .position(|window| window == TELEMETRY_PREAMBLE.as_slice());
+
+    let preamble_pos = match preamble_pos {
         Some(position) => position,
         None => {
-            let keep_len = header_len.saturating_sub(1);
+            let keep_len = preamble_len.saturating_sub(1);
             if stream.len() > keep_len {
                 let start = stream.len() - keep_len;
                 stream.drain(..start);
@@ -173,19 +197,56 @@ fn extract_telemetry_packet(stream: &mut Vec<u8>) -> Option<TelemetryPacket> {
         }
     };
 
-    if header_pos > 0 {
-        stream.drain(..header_pos);
+    if preamble_pos > 0 {
+        stream.drain(..preamble_pos);
     }
+
+    if stream.len() < TELEMETRY_FRAME_HEADER_LEN {
+        return None;
+    }
+
+    let frame_type = stream[4];
+    let version = stream[5];
+
+    if version != TELEMETRY_VERSION {
+        stream.drain(..1);
+        return None;
+    }
+
+    let payload_len = u16::from_le_bytes([stream[6], stream[7]]) as usize;
+    let frame_len = TELEMETRY_FRAME_HEADER_LEN + payload_len;
 
     if stream.len() < frame_len {
         return None;
     }
 
-    let packet = TelemetryPacket::ref_from_bytes(&stream[header_len..frame_len])
-        .ok()
-        .copied();
-
+    let frame = parse_frame(frame_type, &stream[TELEMETRY_FRAME_HEADER_LEN..frame_len]);
     stream.drain(..frame_len);
+    frame
+}
 
-    packet
+fn apply_frame(frame: TelemetryFrame) {
+    let mut telemetry = TELEMETRY.lock().unwrap();
+
+    match frame {
+        TelemetryFrame::Values(entries) => {
+            for entry in entries {
+                telemetry.values.insert(
+                    entry.key,
+                    TypedValue {
+                        value_type: entry.value_type,
+                        payload: entry.payload,
+                    },
+                );
+            }
+        }
+        TelemetryFrame::Lidar(points) => {
+            for point in points {
+                if telemetry.lidar_points.len() >= 1500 {
+                    telemetry.lidar_points.pop_front();
+                }
+                telemetry.lidar_points.push_back(point);
+            }
+        }
+    }
 }

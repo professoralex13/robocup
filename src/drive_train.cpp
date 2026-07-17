@@ -1,4 +1,5 @@
 #include "drive_train.hpp"
+#include "telemetry_bus.hpp"
 #include <wiring.h>
 
 DriveTrainTask::DriveTrainTask() : SchedulerTask("drive_train_task") {}
@@ -29,6 +30,9 @@ void DriveTrainTask::loop() {
 
     last_left_ticks = left_ticks;
     last_right_ticks = right_ticks;
+
+    telemetry::publish_f32(telemetry::KEY_LEFT_WHEEL_VELOCITY, this->left_velocity);
+    telemetry::publish_f32(telemetry::KEY_RIGHT_WHEEL_VELOCITY, this->right_velocity);
 }
 
 float DriveTrainTask::get_left_wheel_position() { return RADIANS_PER_TICK * this->last_left_ticks; }

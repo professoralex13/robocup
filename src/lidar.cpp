@@ -1,5 +1,6 @@
 #include "lidar.hpp"
 #include "Arduino.h"
+#include "telemetry_bus.hpp"
 #undef B1
 #include <Eigen/Geometry>
 #include <algorithm>
@@ -25,6 +26,7 @@ constexpr float LIDAR_IGNORE_BOUND_A_RADIANS = -135.0f * LIDAR_DEG_TO_RAD;
 constexpr float LIDAR_IGNORE_BOUND_B_RADIANS = 90.0f * LIDAR_DEG_TO_RAD;
 
 constexpr float WRAP_TWO_PI = 6.28318530718f;
+constexpr uint32_t LIDAR_TELEMETRY_PERIOD_MICROS = 1000000 / 60;
 
 float wrap_angle_positive(float angle) {
     float wrapped = fmodf(angle, WRAP_TWO_PI);
@@ -98,6 +100,7 @@ void LidarTask::setup() {
 
 void LidarTask::loop() {
     static uint8_t buffer[100];
+    static uint32_t next_lidar_telemetry_publish = 0;
 
     int available = Serial2.available();
     if (available <= 0) {
@@ -119,15 +122,23 @@ void LidarTask::loop() {
 
             if constexpr (std::is_same_v<T, std::optional<LidarResponseData>>) {
                 if (arg.has_value()) {
+                    std::array<LidarResponsePoint, POINTS_PER_PACK> telemetry_points =
+                        (*arg).points;
+
                     for (int i = 0; i < POINTS_PER_PACK; i++) {
                         if ((*arg).points[i].position.norm() > 12.0) {
+                            telemetry_points[i] = {.position = Eigen::Vector2f::Zero(),
+                                                   .intensity = 0};
                             continue;
                         }
 
                         LidarResponsePoint corrected = this->to_robot_frame((*arg).points[i]);
+                        telemetry_points[i] = corrected;
                         float point_angle = atan2f(corrected.position.x(), corrected.position.y());
 
                         if (this->is_angle_ignored(point_angle)) {
+                            telemetry_points[i] = {.position = Eigen::Vector2f::Zero(),
+                                                   .intensity = 0};
                             continue;
                         }
 
@@ -136,6 +147,12 @@ void LidarTask::loop() {
                         }
 
                         this->points.push_back(corrected);
+                    }
+
+                    uint32_t now = micros();
+                    if (now >= next_lidar_telemetry_publish) {
+                        telemetry::publish_lidar_points(telemetry_points);
+                        next_lidar_telemetry_publish = now + LIDAR_TELEMETRY_PERIOD_MICROS;
                     }
                 }
             } else if constexpr (std::is_same_v<T, PacketParseError>) {

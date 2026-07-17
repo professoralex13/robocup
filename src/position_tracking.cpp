@@ -1,5 +1,6 @@
 #include "position_tracking.hpp"
 #include "lib/odometry.hpp"
+#include "telemetry_bus.hpp"
 #include "utils.hpp"
 #undef B1
 #include <Eigen/Geometry>
@@ -69,6 +70,12 @@ void PositionTrackingTask::loop() {
     this->last_left_wheel_position = left_wheel_position;
     this->last_right_wheel_position = right_wheel_position;
     this->last_heading = current_heading;
+
+    telemetry::publish_f32(telemetry::KEY_HEADING, this->current_pose.heading);
+    telemetry::publish_f32(telemetry::KEY_POSITION_X, this->current_pose.position.x());
+    telemetry::publish_f32(telemetry::KEY_POSITION_Y, this->current_pose.position.y());
+    telemetry::publish_f32(telemetry::KEY_POSITION_UNCERTAINTY,
+                           this->mcl.get_position_uncertainty());
 }
 
 Pose PositionTrackingTask::get_current_pose() { return this->current_pose; }

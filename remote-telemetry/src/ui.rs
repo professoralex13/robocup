@@ -5,8 +5,12 @@ use zerocopy::IntoBytes;
 
 use crate::{
     data_source::CommandSink,
-    protocol::{COMMAND_HEADER, CommandPacket},
-    telemetry_state::TELEMETRY,
+    protocol::{
+        COMMAND_HEADER, CommandPacket, KEY_HEADING, KEY_LEFT_WHEEL_VELOCITY, KEY_PITCH,
+        KEY_POSITION_UNCERTAINTY, KEY_POSITION_X, KEY_POSITION_Y, KEY_RIGHT_WHEEL_VELOCITY,
+        VALUE_TYPE_FLOAT32,
+    },
+    telemetry_state::{TELEMETRY, TypedValue},
 };
 
 const WIDTH: i32 = 1280;
@@ -14,6 +18,13 @@ const HEIGHT: i32 = 720;
 const FIELD_WIDTH_X_METERS: f32 = 2.4;
 const FIELD_HEIGHT_Y_METERS: f32 = 4.9;
 const VIEW_MARGIN_PX: f32 = 60.0;
+
+fn value_as_f32(value: Option<&TypedValue>) -> Option<f32> {
+    match value {
+        Some(v) if v.value_type == VALUE_TYPE_FLOAT32 => Some(f32::from_bits(v.payload)),
+        _ => None,
+    }
+}
 
 pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::Error>> {
     let (mut rl, thread) = raylib::init()
@@ -108,16 +119,21 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
         d.draw_line_ex(tr, tl, 2.0, Color::BLACK);
         d.draw_line_ex(tl, bl, 2.0, Color::BLACK);
 
-        if let Some(telemetry) = TELEMETRY.lock().unwrap().clone() {
-            let heading = telemetry.heading;
+        let telemetry = TELEMETRY.lock().unwrap().clone();
+
+        if !telemetry.values.is_empty() || !telemetry.lidar_points.is_empty() {
+            let heading = value_as_f32(telemetry.values.get(&KEY_HEADING)).unwrap_or(0.0);
             let heading_sin = heading.sin();
             let heading_cos = heading.cos();
-            let pitch = telemetry.pitch;
-            let left_wheel_velocity = telemetry.left_wheel_velocity;
-            let right_wheel_velocity = telemetry.right_wheel_velocity;
-            let position_x = telemetry.position_x;
-            let position_y = telemetry.position_y;
-            let position_uncertainty = telemetry.position_uncertainty;
+            let pitch = value_as_f32(telemetry.values.get(&KEY_PITCH)).unwrap_or(0.0);
+            let left_wheel_velocity =
+                value_as_f32(telemetry.values.get(&KEY_LEFT_WHEEL_VELOCITY)).unwrap_or(0.0);
+            let right_wheel_velocity =
+                value_as_f32(telemetry.values.get(&KEY_RIGHT_WHEEL_VELOCITY)).unwrap_or(0.0);
+            let position_x = value_as_f32(telemetry.values.get(&KEY_POSITION_X)).unwrap_or(0.0);
+            let position_y = value_as_f32(telemetry.values.get(&KEY_POSITION_Y)).unwrap_or(0.0);
+            let position_uncertainty =
+                value_as_f32(telemetry.values.get(&KEY_POSITION_UNCERTAINTY)).unwrap_or(0.0);
 
             let robot_frame_to_world = |robot_x_m: f32, robot_y_m: f32| -> (f32, f32) {
                 let world_x = position_x + heading_cos * robot_x_m + heading_sin * robot_y_m;
@@ -126,9 +142,9 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
                 (world_x, world_y)
             };
 
-            for point in telemetry.points {
-                let lidar_x_robot_m = point.x as f32 / 1000.0;
-                let lidar_y_robot_m = point.y as f32 / 1000.0;
+            for point in telemetry.lidar_points {
+                let lidar_x_robot_m = point.x_mm as f32 / 1000.0;
+                let lidar_y_robot_m = point.y_mm as f32 / 1000.0;
 
                 let (lidar_x_world, lidar_y_world) =
                     robot_frame_to_world(lidar_x_robot_m, lidar_y_robot_m);
