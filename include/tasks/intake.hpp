@@ -1,10 +1,9 @@
 #pragma once
 
-#include "lib/lidar.hpp"
 #include "scheduler_task.hpp"
 #include <HardwareSerial.h>
 #include <HerkulexServo.h>
-#include <etl/deque.h>
+#include <config.hpp>
 
 class IntakeTask : public SchedulerTask {
   private:
@@ -22,5 +21,5 @@ class IntakeTask : public SchedulerTask {
     void setup();
     void loop();
 
-    int get_frequency() const override { return 60; }
+    int get_frequency() const override { return INTAKE_TASK_FREQ; }
 };

@@ -1,5 +1,6 @@
 #include "telemetry_bus.hpp"
 
+#include <config.hpp>
 #include <cstring>
 
 namespace telemetry {
@@ -140,10 +141,11 @@ size_t flush_values(uint16_t max_entries_per_frame) {
     return to_send;
 }
 
-void publish_lidar_points(const std::array<LidarResponsePoint, POINTS_PER_PACK> &points) {
-    LidarPointEntry packed_points[POINTS_PER_PACK] = {};
+void publish_lidar_points(
+    const std::array<LidarResponsePoint, MAX_ALLOWABLE_LIDAR_POINTS> &points) {
+    LidarPointEntry packed_points[MAX_ALLOWABLE_LIDAR_POINTS] = {};
 
-    for (size_t i = 0; i < POINTS_PER_PACK; i++) {
+    for (size_t i = 0; i < MAX_ALLOWABLE_LIDAR_POINTS; i++) {
         packed_points[i] = {
             .x_mm = static_cast<int16_t>(points[i].position.x() * 1000.0f),
             .y_mm = static_cast<int16_t>(points[i].position.y() * 1000.0f),
@@ -152,12 +154,14 @@ void publish_lidar_points(const std::array<LidarResponsePoint, POINTS_PER_PACK> 
         };
     }
 
-    constexpr uint16_t payload_len = sizeof(uint16_t) + POINTS_PER_PACK * sizeof(LidarPointEntry);
+    constexpr uint16_t payload_len =
+        sizeof(uint16_t) + MAX_ALLOWABLE_LIDAR_POINTS * sizeof(LidarPointEntry);
     uint8_t payload[payload_len] = {0};
 
-    uint16_t count = POINTS_PER_PACK;
+    uint16_t count = MAX_ALLOWABLE_LIDAR_POINTS;
     memcpy(payload, &count, sizeof(count));
-    memcpy(payload + sizeof(uint16_t), packed_points, POINTS_PER_PACK * sizeof(LidarPointEntry));
+    memcpy(payload + sizeof(uint16_t), packed_points,
+           MAX_ALLOWABLE_LIDAR_POINTS * sizeof(LidarPointEntry));
 
     write_frame(FrameType::LidarPoints, payload, payload_len);
 }

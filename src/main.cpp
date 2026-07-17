@@ -1,9 +1,9 @@
-#include "imu.hpp"
-#include "intake_task.hpp"
-#include "lidar.hpp"
-#include "position_tracking.hpp"
-#include "telemetry.hpp"
-#include "user_command.hpp"
+#include "tasks/imu.hpp"
+#include "tasks/intake.hpp"
+#include "tasks/lidar.hpp"
+#include "tasks/position_tracking.hpp"
+#include "tasks/telemetry.hpp"
+#include "tasks/user_command.hpp"
 #include <Arduino.h>
 #include <memory>
 

@@ -31,7 +31,7 @@ class PositionTrackingTask : public SchedulerTask {
     void setup();
     void loop();
 
-    int get_frequency() const override { return 60; }
+    int get_frequency() const override { return POSITION_TRACKING_TASK_FREQ; }
 
     Pose get_current_pose();
     float get_position_uncertainty();

@@ -1,4 +1,4 @@
-#include "imu.hpp"
+#include "tasks/imu.hpp"
 #include "telemetry_bus.hpp"
 
 ImuTask::ImuTask(TwoWire *wire) : SchedulerTask("imu_task"), imu(55, 0x28, wire) {}

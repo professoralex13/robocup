@@ -21,7 +21,7 @@ impl TelemetrySnapshot {
     pub fn new() -> Self {
         Self {
             values: HashMap::new(),
-            lidar_points: VecDeque::with_capacity(1500),
+            lidar_points: VecDeque::with_capacity(500),
         }
     }
 }

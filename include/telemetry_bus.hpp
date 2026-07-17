@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config.hpp"
 #include "lib/lidar.hpp"
 #include <Arduino.h>
 #include <array>
@@ -32,6 +33,6 @@ bool publish_u32(uint16_t key, uint32_t value);
 bool publish_bool(uint16_t key, bool value);
 
 size_t flush_values(uint16_t max_entries_per_frame = 32);
-void publish_lidar_points(const std::array<LidarResponsePoint, POINTS_PER_PACK> &points);
+void publish_lidar_points(const std::array<LidarResponsePoint, MAX_ALLOWABLE_LIDAR_POINTS> &points);
 
 } // namespace telemetry

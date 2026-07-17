@@ -1,4 +1,5 @@
 #include "scheduler_task.hpp"
+#include <config.hpp>
 
 class TelemetryTask : public SchedulerTask {
   public:
@@ -7,5 +8,5 @@ class TelemetryTask : public SchedulerTask {
     void setup();
     void loop();
 
-    int get_frequency() const override { return 10; }
+    int get_frequency() const override { return TELEMETRY_TASK_FREQ; }
 };

@@ -1,23 +1,9 @@
-#include "position_tracking.hpp"
+#include "tasks/position_tracking.hpp"
 #include "lib/odometry.hpp"
 #include "telemetry_bus.hpp"
 #include "utils.hpp"
 #undef B1
 #include <Eigen/Geometry>
-
-namespace {
-
-constexpr float DRIVE_WIDTH_MM = 255.0f;
-constexpr float FIELD_WIDTH_X_METERS = 2.4f;
-constexpr float FIELD_HEIGHT_Y_METERS = 4.9f;
-
-constexpr float WHEEL_RADIUS_MM = 31.0f * (54.0f / 18.0f);
-constexpr float MM_TO_METERS = 1e-3f;
-
-constexpr float INITIAL_X = 1.2f;
-constexpr float INITIAL_Y = 0.4f;
-
-} // namespace
 
 PositionTrackingTask::PositionTrackingTask(ImuTask *imu_task, DriveTrainTask *drive_train_task,
                                            LidarTask *lidar_task)
@@ -58,9 +44,8 @@ void PositionTrackingTask::loop() {
 
     float heading_change = diff_angle(last_heading, current_heading);
 
-    Eigen::Vector2f robot_travel = this->odometry.compute_travel(wheel_travels, heading_change);
-
-    robot_travel *= MM_TO_METERS;
+    Eigen::Vector2f robot_travel =
+        this->odometry.compute_travel(wheel_travels, heading_change) * 1e-3;
 
     this->mcl.predict(robot_travel, heading_change);
     this->mcl.update_beam_model(this->lidar_task->points);
