@@ -1,10 +1,12 @@
 use std::{
     io::{BufRead, BufReader, BufWriter, Read},
+    sync::mpsc::{self, Sender, TryRecvError},
     thread,
     time::Duration,
 };
 
 use serialport::SerialPort;
+use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, connect};
 use zerocopy::FromBytes;
 
@@ -20,6 +22,7 @@ pub enum DataSource {
 
 pub enum CommandSink {
     Serial(BufWriter<Box<dyn SerialPort>>),
+    WebSocket(Sender<Vec<u8>>),
     None,
 }
 
@@ -28,10 +31,7 @@ pub fn initialize_data_source(
 ) -> Result<CommandSink, Box<dyn std::error::Error>> {
     match data_source {
         DataSource::Serial(serial_port) => start_serial_mode(&serial_port),
-        DataSource::WebSocket(url) => {
-            start_websocket_mode(&url)?;
-            Ok(CommandSink::None)
-        }
+        DataSource::WebSocket(url) => start_websocket_mode(&url),
     }
 }
 
@@ -77,16 +77,40 @@ fn start_serial_mode(serial_port: &str) -> Result<CommandSink, Box<dyn std::erro
     Ok(CommandSink::Serial(BufWriter::new(write_port)))
 }
 
-fn start_websocket_mode(url: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn start_websocket_mode(url: &str) -> Result<CommandSink, Box<dyn std::error::Error>> {
     let url = url.to_string();
+    let (command_tx, command_rx) = mpsc::channel::<Vec<u8>>();
 
     thread::spawn(move || {
         loop {
             match connect(url.as_str()) {
                 Ok((mut websocket, _)) => {
+                    if let MaybeTlsStream::Plain(stream) = websocket.get_mut() {
+                        if let Err(error) = stream.set_nonblocking(true) {
+                            eprintln!("Websocket nonblocking setup error: {error}");
+                            thread::sleep(Duration::from_millis(500));
+                            continue;
+                        }
+                    }
+
                     println!("Connected to telemetry bridge at {url}");
 
                     loop {
+                        loop {
+                            match command_rx.try_recv() {
+                                Ok(payload) => {
+                                    if let Err(error) =
+                                        websocket.send(Message::Binary(payload.into()))
+                                    {
+                                        eprintln!("Websocket send error: {error}");
+                                        break;
+                                    }
+                                }
+                                Err(TryRecvError::Empty) => break,
+                                Err(TryRecvError::Disconnected) => return,
+                            }
+                        }
+
                         match websocket.read() {
                             Ok(Message::Binary(payload)) => {
                                 if payload.len() == std::mem::size_of::<TelemetryPacket>() {
@@ -98,12 +122,20 @@ fn start_websocket_mode(url: &str) -> Result<(), Box<dyn std::error::Error>> {
                                     }
                                 }
                             }
+                            Ok(Message::Close(_)) => {
+                                eprintln!("Websocket closed by peer");
+                                break;
+                            }
                             Ok(_) => {}
+                            Err(tungstenite::Error::Io(error))
+                                if error.kind() == std::io::ErrorKind::WouldBlock => {}
                             Err(error) => {
                                 eprintln!("Websocket receive error: {error}");
                                 break;
                             }
                         }
+
+                        thread::sleep(Duration::from_millis(5));
                     }
                 }
                 Err(error) => {
@@ -115,5 +147,5 @@ fn start_websocket_mode(url: &str) -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    Ok(())
+    Ok(CommandSink::WebSocket(command_tx))
 }

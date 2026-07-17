@@ -46,10 +46,23 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             right_command,
         };
 
-        if let CommandSink::Serial(writer) = command_sink {
-            writer.write_all(&COMMAND_HEADER)?;
-            writer.write_all(packet.as_bytes())?;
-            writer.flush()?;
+        match command_sink {
+            CommandSink::Serial(writer) => {
+                writer.write_all(&COMMAND_HEADER)?;
+                writer.write_all(packet.as_bytes())?;
+                writer.flush()?;
+            }
+            CommandSink::WebSocket(sender) => {
+                let mut payload =
+                    Vec::with_capacity(COMMAND_HEADER.len() + packet.as_bytes().len());
+                payload.extend_from_slice(&COMMAND_HEADER);
+                payload.extend_from_slice(packet.as_bytes());
+
+                if sender.send(payload).is_err() {
+                    *command_sink = CommandSink::None;
+                }
+            }
+            CommandSink::None => {}
         }
 
         let mut d = rl.begin_drawing(&thread);
