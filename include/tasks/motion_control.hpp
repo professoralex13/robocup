@@ -1,9 +1,9 @@
 #pragma once
 
-#include "drive_train.hpp"
 #include "lib/pure_pursuit.hpp"
-#include "position_tracking.hpp"
 #include "scheduler_task.hpp"
+#include "tasks/drive_train.hpp"
+#include "tasks/position_tracking.hpp"
 
 #define LIDAR_POINTS_HISTORY 1500
 

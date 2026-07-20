@@ -1,7 +1,7 @@
 #include "tasks/imu.hpp"
 #include "tasks/intake.hpp"
 #include "tasks/lidar.hpp"
-#include "tasks/motion_control_task.hpp"
+#include "tasks/motion_control.hpp"
 #include "tasks/position_tracking.hpp"
 #include "tasks/telemetry.hpp"
 #include "tasks/user_command.hpp"
