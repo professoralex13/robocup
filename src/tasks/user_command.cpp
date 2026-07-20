@@ -1,4 +1,4 @@
-#include "user_command.hpp"
+#include "tasks/user_command.hpp"
 
 UserCommandTask::UserCommandTask(DriveTrainTask *drive_train_task)
     : SchedulerTask("user_command_task"), drive_train_task(drive_train_task) {}
@@ -17,8 +17,6 @@ void UserCommandTask::setup() {}
 #define COMMAND_TIMEOUT 1000
 
 void UserCommandTask::loop() {
-    return;
-
     if (Serial.available() < sizeof(COMMAND_HEADER) + sizeof(CommandPacket)) {
         if (millis() - last_contact > COMMAND_TIMEOUT) {
             drive_train_task->set_commands(0.0, 0.0);

@@ -5,6 +5,7 @@
 #include <Adafruit_BNO055.h>
 #include <HardwareSerial.h>
 #include <Wire.h>
+#include <config.hpp>
 
 class ImuTask : public SchedulerTask {
   private:
@@ -18,5 +19,5 @@ class ImuTask : public SchedulerTask {
 
     Eigen::Vector3f get_euler_angles();
 
-    int get_frequency() const override { return 5; }
+    int get_frequency() const override { return IMU_TASK_FREQ; }
 };

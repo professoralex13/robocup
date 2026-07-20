@@ -1,10 +1,12 @@
-#include "intake_task.hpp"
-#include "lidar.hpp"
-#include "telemetry.hpp"
-#include "user_command.hpp"
+#include "tasks/imu.hpp"
+#include "tasks/intake.hpp"
+#include "tasks/lidar.hpp"
+#include "tasks/motion_control_task.hpp"
+#include "tasks/position_tracking.hpp"
+#include "tasks/telemetry.hpp"
+#include "tasks/user_command.hpp"
 #include <Arduino.h>
 #include <memory>
-#include <motion_control_task.hpp>
 
 static LidarTask lidar_task = LidarTask();
 static DriveTrainTask drive_train_task = DriveTrainTask();
@@ -16,9 +18,7 @@ static MotionControlTask motion_control_task =
     MotionControlTask(&drive_train_task, &position_tracking_task);
 
 static IntakeTask intake_task = IntakeTask();
-
-static TelemetryTask telemetry_task = TelemetryTask(&lidar_task, &imu_task, &drive_train_task,
-                                                    &position_tracking_task, &motion_control_task);
+static TelemetryTask telemetry_task = TelemetryTask();
 static UserCommandTask user_command_task = UserCommandTask(&drive_train_task);
 
 const size_t NUM_TASKS = 8;

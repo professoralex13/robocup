@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <cmath>
 
-// ----- Construction and configuration -----
-
 MonteCarloLocalization::MonteCarloLocalization(const FieldMap &field_map) : field_map(field_map) {
     this->set_initial_pose(
         {
@@ -20,16 +18,16 @@ void MonteCarloLocalization::set_field_map(const FieldMap &field_map) {
     this->field_map = field_map;
 }
 
-// ----- Particle filter predict step -----
-
 void MonteCarloLocalization::set_initial_pose(const Pose &pose, float position_sigma,
                                               float heading_sigma) {
     for (size_t i = 0; i < this->particles.size(); i++) {
         this->particles[i].pose.position =
             pose.position +
             Eigen::Vector2f(this->random_gaussian(), this->random_gaussian()) * position_sigma;
+
         this->particles[i].pose.heading =
             wrap_heading(pose.heading + this->random_gaussian() * heading_sigma);
+
         this->particles[i].weight = 1.0f / (float)this->particles.size();
     }
 
@@ -38,10 +36,12 @@ void MonteCarloLocalization::set_initial_pose(const Pose &pose, float position_s
 
 void MonteCarloLocalization::predict(const Eigen::Vector2f &robot_travel, float heading_change) {
     float travel_distance = robot_travel.norm();
+
     float position_sigma =
-        std::max(0.003f, this->position_noise_per_meter * std::max(travel_distance, 0.02f));
+        std::max(0.003f, POSITION_NOISE_PER_METER * std::max(travel_distance, 0.02f));
+
     float heading_sigma =
-        std::max(0.002f, this->heading_noise_per_radian * std::max(fabsf(heading_change), 0.01f));
+        std::max(0.002f, HEADING_NOISE_PER_RADIAN * std::max(fabsf(heading_change), 0.01f));
 
     for (size_t i = 0; i < this->particles.size(); i++) {
         Eigen::Vector2f noisy_travel =
@@ -66,7 +66,8 @@ void MonteCarloLocalization::predict(const Eigen::Vector2f &robot_travel, float 
 
 // ----- Particle filter measurement step (beam model) -----
 
-void MonteCarloLocalization::update_beam_model(const etl::deque<LidarResponsePoint, 312> &points) {
+void MonteCarloLocalization::update_beam_model(
+    const etl::deque<LidarResponsePoint, MAX_ALLOWABLE_LIDAR_POINTS> &points) {
     if (points.empty() || this->field_map.wall_count() == 0) {
         this->compute_estimated_pose();
         return;
@@ -76,7 +77,7 @@ void MonteCarloLocalization::update_beam_model(const etl::deque<LidarResponsePoi
     size_t step = std::max((size_t)1, points.size() / beam_count);
 
     constexpr float MIN_PROBABILITY = 1e-6f;
-    float sigma_sq = this->beam_sigma * this->beam_sigma;
+    float sigma_sq = LIDAR_NOISE * LIDAR_NOISE;
 
     std::array<float, NUM_PARTICLES> log_weights;
     float max_log_weight = -INFINITY;
@@ -91,7 +92,8 @@ void MonteCarloLocalization::update_beam_model(const etl::deque<LidarResponsePoi
                 points[points.size() - 1 - std::min(points.size() - 1, beam_idx * step)];
 
             float measured_range = beam_point.position.norm();
-            if (measured_range < this->lidar_min_range || measured_range > this->lidar_max_range) {
+
+            if (measured_range > LIDAR_MAX_DISTANCE) {
                 continue;
             }
 
@@ -104,12 +106,12 @@ void MonteCarloLocalization::update_beam_model(const etl::deque<LidarResponsePoi
                 -heading_sin * beam_point.position.x() + heading_cos * beam_point.position.y());
 
             float expected_range = this->field_map.raycast(particle.pose.position, world_direction,
-                                                           this->lidar_max_range);
+                                                           LIDAR_MAX_DISTANCE);
 
             float error = measured_range - expected_range;
 
             float p_hit = expf(-0.5f * (error * error) / sigma_sq);
-            float p_rand = 1.0f / this->lidar_max_range;
+            float p_rand = 1.0f / LIDAR_MAX_DISTANCE;
 
             float beam_probability = 0.90f * p_hit + 0.10f * p_rand;
 
@@ -121,6 +123,7 @@ void MonteCarloLocalization::update_beam_model(const etl::deque<LidarResponsePoi
     }
 
     float total_weight = 0.0f;
+
     for (size_t i = 0; i < this->particles.size(); i++) {
         float weight = expf(log_weights[i] - max_log_weight);
         this->particles[i].weight = weight;
@@ -153,8 +156,6 @@ float MonteCarloLocalization::get_position_uncertainty() const {
 
     return sqrtf(std::max(0.0f, weighted_variance));
 }
-
-// ----- Random and resampling helpers -----
 
 float MonteCarloLocalization::random_uniform() {
     uint32_t x = this->rng_state;
@@ -220,8 +221,6 @@ void MonteCarloLocalization::low_variance_resample() {
 
     this->particles = resampled_particles;
 }
-
-// ----- State estimate extraction -----
 
 void MonteCarloLocalization::compute_estimated_pose() {
     float weighted_x = 0.0f;
