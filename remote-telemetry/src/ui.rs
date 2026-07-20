@@ -6,17 +6,18 @@ use zerocopy::IntoBytes;
 use crate::{
     data_source::CommandSink,
     protocol::{
-        COMMAND_HEADER, CommandPacket, KEY_HEADING, KEY_LEFT_WHEEL_VELOCITY, KEY_PITCH,
-        KEY_POSITION_UNCERTAINTY, KEY_POSITION_X, KEY_POSITION_Y, KEY_RIGHT_WHEEL_VELOCITY,
-        VALUE_TYPE_FLOAT32,
+        COMMAND_HEADER, CommandPacket, KEY_DRIVE_ERROR, KEY_HEADING, KEY_LEFT_COMMAND,
+        KEY_LEFT_WHEEL_VELOCITY, KEY_LOOKAHEAD_X, KEY_LOOKAHEAD_Y, KEY_NEXTPOINT_X,
+        KEY_NEXTPOINT_Y, KEY_PITCH, KEY_POSITION_UNCERTAINTY, KEY_POSITION_X, KEY_POSITION_Y,
+        KEY_RIGHT_COMMAND, KEY_RIGHT_WHEEL_VELOCITY, KEY_TURN_ERROR, VALUE_TYPE_FLOAT32,
     },
     telemetry_state::{TELEMETRY, TypedValue},
 };
 
 const WIDTH: i32 = 1280;
 const HEIGHT: i32 = 720;
-const FIELD_WIDTH_X_METERS: f32 = 2.4;
-const FIELD_HEIGHT_Y_METERS: f32 = 4.9;
+const FIELD_WIDTH_X_METERS: f32 = 2.35;
+const FIELD_HEIGHT_Y_METERS: f32 = 4.85;
 const VIEW_MARGIN_PX: f32 = 60.0;
 
 fn value_as_f32(value: Option<&TypedValue>) -> Option<f32> {
@@ -49,42 +50,33 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             x = 1;
         }
 
-        let left_command = (y + x).clamp(-1, 1) * 100;
-        let right_command = (y - x).clamp(-1, 1) * 100;
-
         let packet = CommandPacket {
-            left_command,
-            right_command,
+            left_command: (y + x).clamp(-1, 1) * 100,
+            right_command: (y - x).clamp(-1, 1) * 100,
         };
 
         let mut payload = Vec::with_capacity(COMMAND_HEADER.len() + packet.as_bytes().len());
         payload.extend_from_slice(&COMMAND_HEADER);
         payload.extend_from_slice(packet.as_bytes());
 
-        match command_sink {
-            CommandSink::Serial(sender) => {
-                if sender.send(payload).is_err() {
-                    *command_sink = CommandSink::None;
-                }
-            }
-            CommandSink::WebSocket(sender) => {
-                if sender.send(payload).is_err() {
-                    *command_sink = CommandSink::None;
-                }
-            }
-            CommandSink::None => {}
-        }
+        // Sending commands is causing pipe halts
+
+        // match command_sink {
+        //     CommandSink::Serial(sender) => {
+        //         if sender.send(payload).is_err() {
+        //             *command_sink = CommandSink::None;
+        //         }
+        //     }
+        //     CommandSink::WebSocket(sender) => {
+        //         if sender.send(payload).is_err() {
+        //             *command_sink = CommandSink::None;
+        //         }
+        //     }
+        //     CommandSink::None => {}
+        // }
 
         let mut d = rl.begin_drawing(&thread);
         d.clear_background(Color::WHITE);
-
-        d.draw_text(
-            format!("Left: {left_command}, Right: {right_command}").as_str(),
-            20,
-            60,
-            20,
-            Color::BLACK,
-        );
 
         let screen_w = WIDTH as f32;
         let screen_h = HEIGHT as f32;
@@ -134,6 +126,19 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             let position_uncertainty =
                 value_as_f32(telemetry.values.get(&KEY_POSITION_UNCERTAINTY)).unwrap_or(0.0);
 
+            let drive_error = value_as_f32(telemetry.values.get(&KEY_DRIVE_ERROR)).unwrap_or(0.0);
+            let turn_error = value_as_f32(telemetry.values.get(&KEY_TURN_ERROR)).unwrap_or(0.0);
+
+            let left_command = value_as_f32(telemetry.values.get(&KEY_LEFT_COMMAND)).unwrap_or(0.0);
+            let right_command =
+                value_as_f32(telemetry.values.get(&KEY_RIGHT_COMMAND)).unwrap_or(0.0);
+
+            let nextpoint_x = value_as_f32(telemetry.values.get(&KEY_NEXTPOINT_X)).unwrap_or(0.0);
+            let nextpoint_y = value_as_f32(telemetry.values.get(&KEY_NEXTPOINT_Y)).unwrap_or(0.0);
+
+            let lookahead_x = value_as_f32(telemetry.values.get(&KEY_LOOKAHEAD_X)).unwrap_or(0.0);
+            let lookahead_y = value_as_f32(telemetry.values.get(&KEY_LOOKAHEAD_Y)).unwrap_or(0.0);
+
             let robot_frame_to_world = |robot_x_m: f32, robot_y_m: f32| -> (f32, f32) {
                 let world_x = position_x + heading_cos * robot_x_m + heading_sin * robot_y_m;
                 let world_y = position_y - heading_sin * robot_x_m + heading_cos * robot_y_m;
@@ -167,6 +172,9 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             let (heading_end_x, heading_end_y) = robot_frame_to_world(0.0, heading_length_m);
             let heading_end = world_to_screen(heading_end_x, heading_end_y);
             d.draw_line_ex(robot_screen, heading_end, 3.0, Color::BLUE);
+
+            d.draw_circle_v(world_to_screen(nextpoint_x, nextpoint_y), 3.0, Color::RED);
+            d.draw_circle_v(world_to_screen(lookahead_x, lookahead_y), 3.0, Color::BLUE);
 
             d.draw_text(
                 format!(
@@ -206,6 +214,43 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
                 format!("Position Uncertainty: {:.3}m", position_uncertainty).as_str(),
                 20,
                 100,
+                20,
+                Color::BLACK,
+            );
+
+            d.draw_text(
+                format!(
+                    "Drive Error: {drive_error:.3}m, Turn Error: {:.3}deg",
+                    turn_error * 180.0 / PI
+                )
+                .as_str(),
+                20,
+                120,
+                20,
+                Color::BLACK,
+            );
+
+            d.draw_text(
+                format!("Left Command: {left_command:.3}, Right Command: {right_command:.3}",)
+                    .as_str(),
+                20,
+                140,
+                20,
+                Color::BLACK,
+            );
+
+            d.draw_text(
+                format!("Lookahead: ({lookahead_x:.3}, {lookahead_y:.3})").as_str(),
+                20,
+                160,
+                20,
+                Color::BLACK,
+            );
+
+            d.draw_text(
+                format!("Nextpoint: ({nextpoint_x:.3}, {nextpoint_y:.3})").as_str(),
+                20,
+                180,
                 20,
                 Color::BLACK,
             );

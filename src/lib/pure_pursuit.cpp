@@ -1,4 +1,5 @@
 #include "lib/pure_pursuit.hpp"
+#include "telemetry_bus.hpp"
 #include <utils.hpp>
 
 using Eigen::Vector2f;
@@ -43,6 +44,12 @@ std::tuple<float, float> PurePursuit::compute_errors(Pose current_pose) {
 
         auto lookahead_point = get_snapped_radius_target(current_position, look_ahead_distance,
                                                          last_point, next_point);
+
+        telemetry::publish_f32(telemetry::KEY_LOOKAHEAD_X, lookahead_point.x());
+        telemetry::publish_f32(telemetry::KEY_LOOKAHEAD_Y, lookahead_point.y());
+
+        telemetry::publish_f32(telemetry::KEY_NEXTPOINT_X, next_point.x());
+        telemetry::publish_f32(telemetry::KEY_NEXTPOINT_Y, next_point.y());
 
         auto closest_point = get_closest_point(current_position, last_point, next_point);
 

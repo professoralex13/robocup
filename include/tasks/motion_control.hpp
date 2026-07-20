@@ -24,8 +24,5 @@ class MotionControlTask : public SchedulerTask {
     void setup();
     void loop();
 
-    float drive_error;
-    float turn_error;
-
-    int get_frequency() const override { return 60; }
+    int get_frequency() const override { return MOTION_CONTROL_TASK_FREQ; }
 };

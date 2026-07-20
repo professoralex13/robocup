@@ -23,6 +23,14 @@ enum Key : uint16_t {
     KEY_POSITION_X = 5,
     KEY_POSITION_Y = 6,
     KEY_POSITION_UNCERTAINTY = 7,
+    KEY_DRIVE_ERROR = 8,
+    KEY_TURN_ERROR = 9,
+    KEY_LEFT_COMMAND = 10,
+    KEY_RIGHT_COMMAND = 11,
+    KEY_NEXTPOINT_X = 12,
+    KEY_NEXTPOINT_Y = 13,
+    KEY_LOOKAHEAD_X = 14,
+    KEY_LOOKAHEAD_Y = 15,
 };
 
 void begin(Stream *serial_port = &Serial);

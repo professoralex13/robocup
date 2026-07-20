@@ -18,6 +18,9 @@ void DriveTrainTask::loop() {
     left_motor.writeMicroseconds(map(this->left_command, 1.0, -1.0, FORWARD_MS, REVERSE_MS));
     right_motor.writeMicroseconds(map(this->right_command, 1.0, -1.0, REVERSE_MS, FORWARD_MS));
 
+    telemetry::publish_f32(telemetry::KEY_LEFT_COMMAND, this->left_command);
+    telemetry::publish_f32(telemetry::KEY_RIGHT_COMMAND, this->right_command);
+
     uint32_t timestamp = micros();
 
     float dt = (float)(timestamp - last_timestamp) / 1e6;

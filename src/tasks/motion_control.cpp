@@ -1,16 +1,17 @@
 #include "tasks/motion_control.hpp"
+#include "telemetry_bus.hpp"
 
-#define DRIVE_KP 15e-1
+#define DRIVE_KP 35e-1
 #define DRIVE_KI 0 // 20e-4
 
-#define TURN_KP 4.0e-1
+#define TURN_KP 1.0
 #define TURN_KI 0
-#define TURN_KD 0 // 1.2e-1
+#define TURN_KD 3e-1
 
 MotionControlTask::MotionControlTask(DriveTrainTask *drive_train_task,
                                      PositionTrackingTask *position_tracking_task)
     : SchedulerTask("motion_control"), drive_train_task(drive_train_task),
-      position_tracking_task(position_tracking_task), pure_pursuit(0.1),
+      position_tracking_task(position_tracking_task), pure_pursuit(0.3),
       pid_drive(PIDController(DRIVE_KP, DRIVE_KI, 0, 10)
                     .with_output_limits(-1, 1)
                     .with_integral_bounds(-100, 100)),
@@ -19,7 +20,7 @@ MotionControlTask::MotionControlTask(DriveTrainTask *drive_train_task,
                    .with_integral_bounds(-30 * DEG_TO_RAD, 30 * DEG_TO_RAD)) {}
 
 void MotionControlTask::setup() {
-    pure_pursuit.set_current_path({{1.2, 0.4}, {1.2, 2.0}, {2.0, 2.0}});
+    pure_pursuit.set_current_path({{0.4, 0.4}, {0.4, 4.5}, {2.0, 4.5}, {2.0, 0.4}, {0.4, 0.4}});
 }
 
 void MotionControlTask::loop() {
@@ -27,8 +28,8 @@ void MotionControlTask::loop() {
 
     auto [drive_error, turn_error] = pure_pursuit.compute_errors(pose);
 
-    this->drive_error = drive_error;
-    this->turn_error = turn_error;
+    telemetry::publish_f32(telemetry::KEY_TURN_ERROR, turn_error);
+    telemetry::publish_f32(telemetry::KEY_DRIVE_ERROR, drive_error);
 
     float drive_output = pid_drive.update(drive_error);
     float turn_output = pid_turn.update(turn_error);

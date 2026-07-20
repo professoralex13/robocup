@@ -28,12 +28,12 @@ static const float LIDAR_END_ANGLE = 90.0;
 
 // Position Tracking
 static const float DRIVE_WIDTH_MM = 255.0;
-static const float FIELD_WIDTH_X_METERS = 2.4;
-static const float FIELD_HEIGHT_Y_METERS = 4.9;
+static const float FIELD_WIDTH_X_METERS = 2.35;
+static const float FIELD_HEIGHT_Y_METERS = 4.85;
 
 static const float WHEEL_RADIUS_MM = 35.0 * (54.0 / 18.0);
 
-static const float INITIAL_X = 1.2;
+static const float INITIAL_X = 0.4;
 static const float INITIAL_Y = 0.4;
 
 // Sensor Properties
@@ -47,11 +47,13 @@ static const float LIDAR_MAX_DISTANCE = 12.0;
 //
 
 // Task Frequencies
-static const int DRIVE_TRAIN_TASK_FREQ = 60;
-static const int IMU_TASK_FREQ = 5;
-static const int INTAKE_TASK_FREQ = 60;
 static const int LIDAR_TASK_FREQ = 500;
+static const int MOTION_CONTROL_TASK_FREQ = 60;
 static const int POSITION_TRACKING_TASK_FREQ = 60;
+static const int IMU_TASK_FREQ = 60;
+
+static const int DRIVE_TRAIN_TASK_FREQ = 60;
+static const int INTAKE_TASK_FREQ = 20;
 static const int TELEMETRY_TASK_FREQ = 10;
 static const int USER_COMMAND_TASK_FREQ = 50;
 
