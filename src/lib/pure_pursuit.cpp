@@ -49,18 +49,13 @@ std::tuple<float, float> PurePursuit::compute_errors(Pose current_pose) {
         // Initialize Drive Error as distance to lookahead point plus distance from lookahead point
         // to next point
         drive_error =
-            (current_position - lookahead_point).norm() + (lookahead_point, next_point).norm();
-
-        // Initialize remaining_distance as distance from the closest point on the current segment,
-        // to the end of the current segment
-        remaining_distance = (closest_point - next_point).norm();
+            (current_position - lookahead_point).norm() + (lookahead_point - next_point).norm();
 
         // Loop through the remaining path segments adding that distance to both remaining distance
         // and drive error
         for (int i = 1; i < current_path.size() - 1; i++) {
             float segment_length = (current_path[i] - current_path[i + 1]).norm();
 
-            remaining_distance += segment_length;
             drive_error += segment_length;
         }
 

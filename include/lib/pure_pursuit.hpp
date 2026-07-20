@@ -15,8 +15,6 @@ class PurePursuit {
     std::vector<Eigen::Vector2f> current_path;
     bool drive_path_backwards = false;
 
-    float remaining_distance = 0.0;
-
   public:
     PurePursuit(float look_ahead_distance);
 
