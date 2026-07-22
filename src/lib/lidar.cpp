@@ -43,12 +43,13 @@ parse_packet(etl::span<uint8_t> packet) {
     for (int i = 0; i < POINTS_PER_PACK; i++) {
         float angle = to_cartesian_ccw_angle(start_angle + (float)i * increment);
 
-        Eigen::Vector2f right((float)data.points[i].distance / 1e3, 0.0);
+        Eigen::Vector2f right((float)data.points[i].distance * 1e-3, 0.0);
 
         Eigen::Rotation2D<float> rot(angle);
 
         response_points[i].position = rot * right;
         response_points[i].angle = angle;
+        response_points[i].range = data.points[i].distance * 1e-3;
         response_points[i].intensity = data.points[i].itensity;
     }
 

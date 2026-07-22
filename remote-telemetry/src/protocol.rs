@@ -41,6 +41,7 @@ pub struct LidarPoint {
     pub x_mm: i16,
     pub y_mm: i16,
     pub intensity: u8,
+    pub flags: u8,
 }
 
 #[derive(Clone, Debug)]
@@ -97,11 +98,13 @@ pub fn parse_frame(frame_type: u8, payload: &[u8]) -> Option<TelemetryFrame> {
                 let x_mm = i16::from_le_bytes([body[base], body[base + 1]]);
                 let y_mm = i16::from_le_bytes([body[base + 2], body[base + 3]]);
                 let intensity = body[base + 4];
+                let flags = body[base + 5];
 
                 points.push(LidarPoint {
                     x_mm,
                     y_mm,
                     intensity,
+                    flags,
                 });
             }
 

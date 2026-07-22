@@ -2,6 +2,7 @@
 #include "Arduino.h"
 #include "telemetry_bus.hpp"
 #undef B1
+#include "lib/lidar_processing.hpp"
 #include <Eigen/Geometry>
 #include <algorithm>
 #include <cmath>
@@ -30,8 +31,9 @@ LidarResponsePoint to_robot_frame(const LidarResponsePoint &point) {
 
     return {
         .position = rotated + offset,
-        .angle = point.angle,
         .intensity = point.intensity,
+        .angle = point.angle,
+        .range = point.range,
     };
 }
 
@@ -127,15 +129,11 @@ void LidarTask::loop() {
                     uint32_t now = micros();
 
                     if (now >= next_lidar_telemetry_publish) {
-                        std::array<LidarResponsePoint, LIDAR_POINT_HISTORY_CAPACITY>
-                            telemetry_points = {};
+                        LidarProcessing processing;
 
-                        size_t count = std::min(this->points.size(), telemetry_points.size());
+                        auto segs = processing.process_points(this->points).coarse_segments;
+                        telemetry::publish_lidar_points(segs);
 
-                        std::copy(this->points.begin(), this->points.begin() + count,
-                                  telemetry_points.begin());
-
-                        telemetry::publish_lidar_points(telemetry_points);
                         next_lidar_telemetry_publish = now + LIDAR_TELEMETRY_PERIOD_MICROS;
                     }
                 }

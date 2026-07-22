@@ -158,7 +158,7 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
                 d.draw_circle_v(
                     screen,
                     2.0,
-                    Color::color_from_hsv(360.0 / 256.0 * point.intensity as f32, 1.0, 1.0),
+                    Color::color_from_hsv(360.0 / 20.0 * point.flags as f32, 1.0, 1.0),
                 );
             }
 

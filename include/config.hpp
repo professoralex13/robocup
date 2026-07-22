@@ -57,4 +57,6 @@ static const int INTAKE_TASK_FREQ = 20;
 static const int TELEMETRY_TASK_FREQ = 10;
 static const int USER_COMMAND_TASK_FREQ = 50;
 
-// Other
+// Lidar Point Classification
+static const float COARSE_THRESHOLD_RANGE_MULTIPLIER = 0.1;
+static const float COARSE_THRESHOLD_OFFSET = 0.05;

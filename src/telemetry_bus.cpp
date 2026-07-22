@@ -141,17 +141,20 @@ size_t flush_values(uint16_t max_entries_per_frame) {
     return to_send;
 }
 
-void publish_lidar_points(
-    const std::array<LidarResponsePoint, LIDAR_POINT_HISTORY_CAPACITY> &points) {
+void publish_lidar_points(const std::vector<std::vector<LidarResponsePoint>> &points) {
     LidarPointEntry packed_points[LIDAR_POINT_HISTORY_CAPACITY] = {};
 
-    for (size_t i = 0; i < LIDAR_POINT_HISTORY_CAPACITY; i++) {
-        packed_points[i] = {
-            .x_mm = static_cast<int16_t>(points[i].position.x() * 1000.0f),
-            .y_mm = static_cast<int16_t>(points[i].position.y() * 1000.0f),
-            .intensity = points[i].intensity,
-            .flags = 0,
-        };
+    int incr = 0;
+    for (size_t i = 0; i < points.size(); i++) {
+        for (size_t j = 0; j < points[i].size(); j++) {
+            packed_points[incr] = {
+                .x_mm = static_cast<int16_t>(points[i][j].position.x() * 1000.0f),
+                .y_mm = static_cast<int16_t>(points[i][j].position.y() * 1000.0f),
+                .intensity = points[i][j].intensity,
+                .flags = (uint8_t)i,
+            };
+            incr++;
+        }
     }
 
     constexpr uint16_t payload_len =

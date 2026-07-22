@@ -35,8 +35,9 @@ constexpr size_t LIDAR_POINT_HISTORY_CAPACITY = 500;
 
 struct LidarResponsePoint {
     Eigen::Vector2f position;
-    float angle;
     uint8_t intensity;
+    float angle;
+    float range;
 };
 
 struct LidarResponseData {
