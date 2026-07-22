@@ -1,9 +1,10 @@
 #include "lib/pure_pursuit.hpp"
+#include "telemetry_bus.hpp"
 #include <utils.hpp>
 
 using Eigen::Vector2f;
 
-const float TURN_DEADZONE = 0.1; // TODO: Tune this
+const float TURN_DEADZONE = 0.2; // TODO: Tune this
 
 PurePursuit::PurePursuit(float look_ahead_distance) : look_ahead_distance(look_ahead_distance) {}
 
@@ -44,23 +45,24 @@ std::tuple<float, float> PurePursuit::compute_errors(Pose current_pose) {
         auto lookahead_point = get_snapped_radius_target(current_position, look_ahead_distance,
                                                          last_point, next_point);
 
+        telemetry::publish_f32(telemetry::KEY_LOOKAHEAD_X, lookahead_point.x());
+        telemetry::publish_f32(telemetry::KEY_LOOKAHEAD_Y, lookahead_point.y());
+
+        telemetry::publish_f32(telemetry::KEY_NEXTPOINT_X, next_point.x());
+        telemetry::publish_f32(telemetry::KEY_NEXTPOINT_Y, next_point.y());
+
         auto closest_point = get_closest_point(current_position, last_point, next_point);
 
         // Initialize Drive Error as distance to lookahead point plus distance from lookahead point
         // to next point
         drive_error =
-            (current_position - lookahead_point).norm() + (lookahead_point, next_point).norm();
-
-        // Initialize remaining_distance as distance from the closest point on the current segment,
-        // to the end of the current segment
-        remaining_distance = (closest_point - next_point).norm();
+            (current_position - lookahead_point).norm() + (lookahead_point - next_point).norm();
 
         // Loop through the remaining path segments adding that distance to both remaining distance
         // and drive error
         for (int i = 1; i < current_path.size() - 1; i++) {
             float segment_length = (current_path[i] - current_path[i + 1]).norm();
 
-            remaining_distance += segment_length;
             drive_error += segment_length;
         }
 

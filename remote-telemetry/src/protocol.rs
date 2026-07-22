@@ -18,6 +18,14 @@ pub const KEY_RIGHT_WHEEL_VELOCITY: u16 = 4;
 pub const KEY_POSITION_X: u16 = 5;
 pub const KEY_POSITION_Y: u16 = 6;
 pub const KEY_POSITION_UNCERTAINTY: u16 = 7;
+pub const KEY_DRIVE_ERROR: u16 = 8;
+pub const KEY_TURN_ERROR: u16 = 9;
+pub const KEY_LEFT_COMMAND: u16 = 10;
+pub const KEY_RIGHT_COMMAND: u16 = 11;
+pub const KEY_LOOKAHEAD_X: u16 = 12;
+pub const KEY_LOOKAHEAD_Y: u16 = 13;
+pub const KEY_NEXTPOINT_X: u16 = 14;
+pub const KEY_NEXTPOINT_Y: u16 = 15;
 
 pub const TELEMETRY_FRAME_HEADER_LEN: usize = 8;
 

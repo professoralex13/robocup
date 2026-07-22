@@ -1,3 +1,5 @@
+#pragma once
+
 #include "drive_train.hpp"
 #include "eigen.h"
 #include "imu.hpp"
