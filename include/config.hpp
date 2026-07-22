@@ -58,4 +58,3 @@ static const int TELEMETRY_TASK_FREQ = 10;
 static const int USER_COMMAND_TASK_FREQ = 50;
 
 // Other
-static const int MAX_ALLOWABLE_LIDAR_POINTS = 500;

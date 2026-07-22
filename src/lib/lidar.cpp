@@ -6,6 +6,11 @@
 #define DEG_TO_RAD (std::numbers::pi / 180.0)
 #define FULL_TURN (2.0 * std::numbers::pi)
 
+float to_cartesian_ccw_angle(float sensor_angle) {
+    float cartesian = (float)(std::numbers::pi / 2.0) - sensor_angle;
+    return std::fmod(cartesian + FULL_TURN, FULL_TURN);
+}
+
 std::variant<std::optional<LidarResponseData>, PacketParseError>
 parse_packet(etl::span<uint8_t> packet) {
     if (packet[0] != HEADER || packet[1] != VERLEN) {
@@ -36,13 +41,14 @@ parse_packet(etl::span<uint8_t> packet) {
     std::array<LidarResponsePoint, POINTS_PER_PACK> response_points;
 
     for (int i = 0; i < POINTS_PER_PACK; i++) {
-        float angle = start_angle + (float)i * increment;
+        float angle = to_cartesian_ccw_angle(start_angle + (float)i * increment);
 
-        Eigen::Vector2f forward(0.0, (float)data.points[i].distance / 1e3);
+        Eigen::Vector2f right((float)data.points[i].distance / 1e3, 0.0);
 
-        Eigen::Rotation2D<float> rot(-angle);
+        Eigen::Rotation2D<float> rot(angle);
 
-        response_points[i].position = rot * forward;
+        response_points[i].position = rot * right;
+        response_points[i].angle = angle;
         response_points[i].intensity = data.points[i].itensity;
     }
 

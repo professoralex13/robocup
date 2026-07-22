@@ -142,10 +142,10 @@ size_t flush_values(uint16_t max_entries_per_frame) {
 }
 
 void publish_lidar_points(
-    const std::array<LidarResponsePoint, MAX_ALLOWABLE_LIDAR_POINTS> &points) {
-    LidarPointEntry packed_points[MAX_ALLOWABLE_LIDAR_POINTS] = {};
+    const std::array<LidarResponsePoint, LIDAR_POINT_HISTORY_CAPACITY> &points) {
+    LidarPointEntry packed_points[LIDAR_POINT_HISTORY_CAPACITY] = {};
 
-    for (size_t i = 0; i < MAX_ALLOWABLE_LIDAR_POINTS; i++) {
+    for (size_t i = 0; i < LIDAR_POINT_HISTORY_CAPACITY; i++) {
         packed_points[i] = {
             .x_mm = static_cast<int16_t>(points[i].position.x() * 1000.0f),
             .y_mm = static_cast<int16_t>(points[i].position.y() * 1000.0f),
@@ -155,13 +155,13 @@ void publish_lidar_points(
     }
 
     constexpr uint16_t payload_len =
-        sizeof(uint16_t) + MAX_ALLOWABLE_LIDAR_POINTS * sizeof(LidarPointEntry);
+        sizeof(uint16_t) + LIDAR_POINT_HISTORY_CAPACITY * sizeof(LidarPointEntry);
     uint8_t payload[payload_len] = {0};
 
-    uint16_t count = MAX_ALLOWABLE_LIDAR_POINTS;
+    uint16_t count = LIDAR_POINT_HISTORY_CAPACITY;
     memcpy(payload, &count, sizeof(count));
     memcpy(payload + sizeof(uint16_t), packed_points,
-           MAX_ALLOWABLE_LIDAR_POINTS * sizeof(LidarPointEntry));
+           LIDAR_POINT_HISTORY_CAPACITY * sizeof(LidarPointEntry));
 
     write_frame(FrameType::LidarPoints, payload, payload_len);
 }

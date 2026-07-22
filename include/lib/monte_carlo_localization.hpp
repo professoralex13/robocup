@@ -7,7 +7,7 @@
 #include <config.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <etl/deque.h>
+#include <etl/span.h>
 
 class MonteCarloLocalization {
   public:
@@ -24,8 +24,7 @@ class MonteCarloLocalization {
     void predict(const Eigen::Vector2f &robot_travel, float heading_change);
 
     // Measurement step using lidar points and a beam model against the field map.
-    void
-    update_beam_model(const etl::deque<LidarResponsePoint, MAX_ALLOWABLE_LIDAR_POINTS> &points);
+    void update_beam_model(etl::span<const LidarResponsePoint> points);
 
     Pose get_estimated_pose() const;
     float get_position_uncertainty() const;

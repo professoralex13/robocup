@@ -11,6 +11,7 @@ LidarTask::LidarTask() : SchedulerTask("lidar_task") {}
 static uint8_t SERIAL_MEMORY[200];
 
 constexpr uint32_t LIDAR_TELEMETRY_PERIOD_MICROS = 100;
+constexpr float LIDAR_REPLACEMENT_ANGLE_EPSILON = 1.0f * DEG_TO_RAD;
 
 float wrap_angle_positive(float angle) {
     float wrapped = fmodf(angle, 2.0 * PI);
@@ -29,8 +30,44 @@ LidarResponsePoint to_robot_frame(const LidarResponsePoint &point) {
 
     return {
         .position = rotated + offset,
+        .angle = point.angle,
         .intensity = point.intensity,
     };
+}
+
+float smallest_angular_difference(float a, float b) {
+    float diff = wrap_angle_positive(a) - wrap_angle_positive(b);
+
+    if (diff > PI) {
+        diff -= 2.0f * PI;
+    } else if (diff < -PI) {
+        diff += 2.0f * PI;
+    }
+
+    return fabsf(diff);
+}
+
+void upsert_point_by_angle(etl::vector<LidarResponsePoint, LIDAR_POINT_HISTORY_CAPACITY> &points,
+                           const LidarResponsePoint &new_point) {
+    auto existing = std::find_if(points.begin(), points.end(), [&new_point](const auto &point) {
+        return smallest_angular_difference(point.angle, new_point.angle) <=
+               LIDAR_REPLACEMENT_ANGLE_EPSILON;
+    });
+
+    if (existing != points.end()) {
+        *existing = new_point;
+        return;
+    }
+
+    if (points.full()) {
+        auto oldest = points.begin();
+
+        if (oldest != points.end()) {
+            points.erase(oldest);
+        }
+    }
+
+    points.push_back(new_point);
 }
 
 bool is_angle_valid(float angle_radians) {
@@ -77,28 +114,25 @@ void LidarTask::loop() {
             if constexpr (std::is_same_v<T, std::optional<LidarResponseData>>) {
                 if (arg.has_value()) {
                     for (int i = 0; i < POINTS_PER_PACK; i++) {
-                        float point_angle =
-                            atan2f((*arg).points[i].position.y(), (*arg).points[i].position.x());
+                        float point_angle = (*arg).points[i].angle;
 
                         if (!is_angle_valid(point_angle)) {
                             continue;
                         }
 
                         LidarResponsePoint corrected = to_robot_frame((*arg).points[i]);
-
-                        if (this->points.full()) {
-                            this->points.pop_front();
-                        }
-
-                        this->points.push_back(corrected);
+                        upsert_point_by_angle(this->points, corrected);
                     }
 
                     uint32_t now = micros();
 
                     if (now >= next_lidar_telemetry_publish) {
-                        std::array<LidarResponsePoint, MAX_ALLOWABLE_LIDAR_POINTS> telemetry_points;
+                        std::array<LidarResponsePoint, LIDAR_POINT_HISTORY_CAPACITY>
+                            telemetry_points = {};
 
-                        std::copy(this->points.begin(), this->points.end(),
+                        size_t count = std::min(this->points.size(), telemetry_points.size());
+
+                        std::copy(this->points.begin(), this->points.begin() + count,
                                   telemetry_points.begin());
 
                         telemetry::publish_lidar_points(telemetry_points);
