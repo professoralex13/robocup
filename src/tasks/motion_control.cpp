@@ -6,7 +6,7 @@
 
 #define TURN_KP 1.0
 #define TURN_KI 0
-#define TURN_KD 3e-1
+#define TURN_KD 6e-1
 
 MotionControlTask::MotionControlTask(DriveTrainTask *drive_train_task,
                                      PositionTrackingTask *position_tracking_task)
@@ -20,7 +20,8 @@ MotionControlTask::MotionControlTask(DriveTrainTask *drive_train_task,
                    .with_integral_bounds(-30 * DEG_TO_RAD, 30 * DEG_TO_RAD)) {}
 
 void MotionControlTask::setup() {
-    pure_pursuit.set_current_path({{0.4, 0.4}, {0.4, 4.5}, {2.0, 4.5}, {2.0, 0.4}, {0.4, 0.4}});
+    pure_pursuit.set_current_path({{0.6, 0.6}, {1.8, 4.3}, {0.6, 4.4}, {1.8, 0.6}, {0.6, 0.6}},
+                                  true);
 }
 
 void MotionControlTask::loop() {

@@ -28,7 +28,7 @@ static const float LIDAR_END_ANGLE = 90.0;
 
 // Position Tracking
 static const float DRIVE_WIDTH_MM = 255.0;
-static const float FIELD_WIDTH_X_METERS = 2.35;
+static const float FIELD_WIDTH_X_METERS = 2.425;
 static const float FIELD_HEIGHT_Y_METERS = 4.85;
 
 static const float WHEEL_RADIUS_MM = 35.0 * (54.0 / 18.0);

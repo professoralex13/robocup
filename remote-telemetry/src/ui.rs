@@ -16,7 +16,7 @@ use crate::{
 
 const WIDTH: i32 = 1280;
 const HEIGHT: i32 = 720;
-const FIELD_WIDTH_X_METERS: f32 = 2.35;
+const FIELD_WIDTH_X_METERS: f32 = 2.425;
 const FIELD_HEIGHT_Y_METERS: f32 = 4.85;
 const VIEW_MARGIN_PX: f32 = 60.0;
 
