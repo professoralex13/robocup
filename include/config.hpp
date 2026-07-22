@@ -37,8 +37,8 @@ static const float INITIAL_X = 1.2;
 static const float INITIAL_Y = 0.4;
 
 // Sensor Properties
-static const float HEADING_NOISE_PER_RADIAN = 0.03;
-static const float POSITION_NOISE_PER_METER = 0.04;
+static const float HEADING_NOISE_PER_RADIAN = 0.01;
+static const float POSITION_NOISE_PER_METER = 0.2;
 static const float LIDAR_NOISE = 0.02;
 static const float LIDAR_MAX_DISTANCE = 12.0;
 

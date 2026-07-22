@@ -150,7 +150,9 @@ float MonteCarloLocalization::get_position_uncertainty() const {
 
     for (size_t i = 0; i < this->particles.size(); i++) {
         const Particle &particle = this->particles[i];
+
         Eigen::Vector2f error = particle.pose.position - this->estimated_pose.position;
+
         weighted_variance += particle.weight * error.squaredNorm();
     }
 
@@ -171,23 +173,28 @@ float MonteCarloLocalization::random_symmetric() { return 2.0f * this->random_un
 
 float MonteCarloLocalization::random_gaussian() {
     float sum = 0.0f;
+
     for (int i = 0; i < 6; i++) {
         sum += this->random_symmetric();
     }
+
     return sum * 0.5f;
 }
 
 void MonteCarloLocalization::normalize_weights() {
     float total_weight = 0.0f;
+
     for (size_t i = 0; i < this->particles.size(); i++) {
         total_weight += this->particles[i].weight;
     }
 
     if (total_weight <= 0.0f) {
         float uniform = 1.0f / (float)this->particles.size();
+
         for (size_t i = 0; i < this->particles.size(); i++) {
             this->particles[i].weight = uniform;
         }
+
         return;
     }
 
