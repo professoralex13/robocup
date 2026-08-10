@@ -1,6 +1,7 @@
 #include "tasks/imu.hpp"
 #include "tasks/intake.hpp"
 #include "tasks/lidar.hpp"
+#include "tasks/lidar_processing.hpp"
 #include "tasks/motion_control.hpp"
 #include "tasks/position_tracking.hpp"
 #include "tasks/telemetry.hpp"
@@ -17,15 +18,24 @@ static PositionTrackingTask position_tracking_task =
 static MotionControlTask motion_control_task =
     MotionControlTask(&drive_train_task, &position_tracking_task);
 
+static LidarProcessingTask lidar_processing_task = LidarProcessingTask(&lidar_task);
+
 static IntakeTask intake_task = IntakeTask();
 static TelemetryTask telemetry_task = TelemetryTask();
 static UserCommandTask user_command_task = UserCommandTask(&drive_train_task);
 
-const size_t NUM_TASKS = 8;
+const size_t NUM_TASKS = 9;
 
 std::array<SchedulerTask *, NUM_TASKS> tasks = {
-    &lidar_task,          &drive_train_task, &imu_task,       &position_tracking_task,
-    &motion_control_task, &intake_task,      &telemetry_task, &user_command_task,
+    &lidar_task,
+    &drive_train_task,
+    &imu_task,
+    &position_tracking_task,
+    &motion_control_task,
+    &intake_task,
+    &telemetry_task,
+    &user_command_task,
+    &lidar_processing_task,
 };
 std::array<uint32_t, NUM_TASKS> next_runs = {0};
 

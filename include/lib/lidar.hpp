@@ -31,7 +31,6 @@ struct __attribute__((packed)) LidarPacket {
 
 #define PACKET_SIZE sizeof(LidarPacket)
 
-constexpr size_t LIDAR_POINT_HISTORY_CAPACITY = 500;
 
 struct LidarResponsePoint {
     Eigen::Vector2f position;

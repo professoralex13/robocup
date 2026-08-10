@@ -10,6 +10,8 @@ class LidarTask : public SchedulerTask {
   private:
     LidarDataReader reader;
 
+    etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points;
+
   public:
     LidarTask();
 
@@ -18,5 +20,5 @@ class LidarTask : public SchedulerTask {
 
     int get_frequency() const override { return LIDAR_TASK_FREQ; }
 
-    etl::vector<LidarResponsePoint, LIDAR_POINT_HISTORY_CAPACITY> points;
+    std::span<LidarResponsePoint> get_points();
 };

@@ -51,6 +51,7 @@ static const int LIDAR_TASK_FREQ = 500;
 static const int MOTION_CONTROL_TASK_FREQ = 60;
 static const int POSITION_TRACKING_TASK_FREQ = 60;
 static const int IMU_TASK_FREQ = 60;
+static const int LIDAR_PROCESSING_FREQ = 5;
 
 static const int DRIVE_TRAIN_TASK_FREQ = 60;
 static const int INTAKE_TASK_FREQ = 20;
@@ -60,3 +61,5 @@ static const int USER_COMMAND_TASK_FREQ = 50;
 // Lidar Point Classification
 static const float COARSE_THRESHOLD_RANGE_MULTIPLIER = 0.1;
 static const float COARSE_THRESHOLD_OFFSET = 0.05;
+
+static const int MAX_LIDAR_POINTS = 512;

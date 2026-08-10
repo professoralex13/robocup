@@ -271,12 +271,7 @@ fn apply_frame(frame: TelemetryFrame) {
             }
         }
         TelemetryFrame::Lidar(points) => {
-            for point in points {
-                if telemetry.lidar_points.len() >= 1500 {
-                    telemetry.lidar_points.pop_front();
-                }
-                telemetry.lidar_points.push_back(point);
-            }
+            telemetry.lidar_points = points;
         }
     }
 }

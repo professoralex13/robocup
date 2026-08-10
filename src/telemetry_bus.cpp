@@ -2,6 +2,7 @@
 
 #include <config.hpp>
 #include <cstring>
+#include <lib/lidar_processing.hpp>
 
 namespace telemetry {
 
@@ -141,30 +142,29 @@ size_t flush_values(uint16_t max_entries_per_frame) {
     return to_send;
 }
 
-void publish_lidar_points(const std::vector<std::vector<LidarResponsePoint>> &points) {
-    LidarPointEntry packed_points[LIDAR_POINT_HISTORY_CAPACITY] = {};
+void publish_lidar_points(LidarProcessingResult processing_response) {
+    LidarPointEntry packed_points[MAX_LIDAR_POINTS] = {};
 
     int incr = 0;
-    for (size_t i = 0; i < points.size(); i++) {
-        for (size_t j = 0; j < points[i].size(); j++) {
+    for (int i = 0; i < processing_response.line_segments.size(); i++) {
+        auto cluster = processing_response.line_segments[i];
+        for (int j = cluster.start; j < cluster.start + cluster.count; j++) {
             packed_points[incr] = {
-                .x_mm = static_cast<int16_t>(points[i][j].position.x() * 1000.0f),
-                .y_mm = static_cast<int16_t>(points[i][j].position.y() * 1000.0f),
-                .intensity = points[i][j].intensity,
+                .x_mm = static_cast<int16_t>(processing_response.points[j].position.x() * 1000.0f),
+                .y_mm = static_cast<int16_t>(processing_response.points[j].position.y() * 1000.0f),
+                .intensity = processing_response.points[j].intensity,
                 .flags = (uint8_t)i,
             };
             incr++;
         }
     }
 
-    constexpr uint16_t payload_len =
-        sizeof(uint16_t) + LIDAR_POINT_HISTORY_CAPACITY * sizeof(LidarPointEntry);
+    constexpr uint16_t payload_len = sizeof(uint16_t) + MAX_LIDAR_POINTS * sizeof(LidarPointEntry);
     uint8_t payload[payload_len] = {0};
 
-    uint16_t count = LIDAR_POINT_HISTORY_CAPACITY;
+    uint16_t count = MAX_LIDAR_POINTS;
     memcpy(payload, &count, sizeof(count));
-    memcpy(payload + sizeof(uint16_t), packed_points,
-           LIDAR_POINT_HISTORY_CAPACITY * sizeof(LidarPointEntry));
+    memcpy(payload + sizeof(uint16_t), packed_points, MAX_LIDAR_POINTS * sizeof(LidarPointEntry));
 
     write_frame(FrameType::LidarPoints, payload, payload_len);
 }

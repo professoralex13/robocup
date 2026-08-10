@@ -48,7 +48,7 @@ void PositionTrackingTask::loop() {
         this->odometry.compute_travel(wheel_travels, heading_change) * 1e-3;
 
     this->mcl.predict(robot_travel, heading_change);
-    this->mcl.update_beam_model({this->lidar_task->points.data(), this->lidar_task->points.size()});
+    this->mcl.update_beam_model(this->lidar_task->get_points());
 
     this->current_pose = this->mcl.get_estimated_pose();
 

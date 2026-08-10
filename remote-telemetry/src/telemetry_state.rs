@@ -14,14 +14,14 @@ pub struct TypedValue {
 #[derive(Clone, Debug)]
 pub struct TelemetrySnapshot {
     pub values: HashMap<u16, TypedValue>,
-    pub lidar_points: VecDeque<LidarPoint>,
+    pub lidar_points: Vec<LidarPoint>,
 }
 
 impl TelemetrySnapshot {
     pub fn new() -> Self {
         Self {
             values: HashMap::new(),
-            lidar_points: VecDeque::with_capacity(500),
+            lidar_points: Vec::new(),
         }
     }
 }
