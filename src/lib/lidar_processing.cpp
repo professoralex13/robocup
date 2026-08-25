@@ -74,7 +74,7 @@ LidarProcessingResult fit_clusters(const ClusterList &coarse_clusters,
         auto range = work_stack.back();
         work_stack.pop_back();
 
-        if (range.count >= 3) {
+        if (range.count >= MIN_POINTS_PER_OBJECT) {
             auto circle_fit = fit_circle(points, range);
 
             if (MIN_CIRCLE_RADIUS < circle_fit.r && circle_fit.r < MAX_CIRCLE_RADIUS &&
@@ -121,11 +121,11 @@ LidarProcessingResult fit_clusters(const ClusterList &coarse_clusters,
             second = {range.start + split + 1, range.count - split + 1};
         }
 
-        if (first.count >= 2) {
+        if (first.count >= MIN_POINTS_PER_OBJECT) {
             work_stack.push_back(first);
         }
 
-        if (second.count >= 2) {
+        if (second.count >= MIN_POINTS_PER_OBJECT) {
             work_stack.push_back(second);
         }
     }
