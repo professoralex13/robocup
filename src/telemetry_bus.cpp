@@ -146,15 +146,18 @@ void publish_lidar_points(LidarProcessingResult processing_response) {
     LidarPointEntry packed_points[MAX_LIDAR_POINTS] = {};
 
     int incr = 0;
+
     for (int i = 0; i < processing_response.line_segments.size(); i++) {
         auto cluster = processing_response.line_segments[i];
-        for (int j = cluster.start; j < cluster.start + cluster.count; j++) {
+
+        for (auto &point : cluster) {
             packed_points[incr] = {
-                .x_mm = static_cast<int16_t>(processing_response.points[j].position.x() * 1000.0f),
-                .y_mm = static_cast<int16_t>(processing_response.points[j].position.y() * 1000.0f),
-                .intensity = processing_response.points[j].intensity,
+                .x_mm = (int16_t)(point.position.x() * 1000.0f),
+                .y_mm = (int16_t)(point.position.y() * 1000.0f),
+                .intensity = point.intensity,
                 .flags = (uint8_t)i,
             };
+
             incr++;
         }
     }
