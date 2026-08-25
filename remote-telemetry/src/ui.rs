@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use raylib::{ffi::EndScissorMode, prelude::*};
+use raylib::prelude::*;
 use zerocopy::IntoBytes;
 
 use crate::{
@@ -20,6 +20,51 @@ const FIELD_WIDTH_X_METERS: f32 = 2.425;
 const FIELD_HEIGHT_Y_METERS: f32 = 4.85;
 const VIEW_MARGIN_PX: f32 = 60.0;
 
+const SLIDER_WIDTH_PX: f32 = 220.0;
+const SLIDER_HEIGHT_PX: f32 = 14.0;
+const SLIDER_GAP_PX: f32 = 26.0;
+
+fn point_in_rect(point: Vector2, rect: Rectangle) -> bool {
+    point.x >= rect.x
+        && point.x <= rect.x + rect.width
+        && point.y >= rect.y
+        && point.y <= rect.y + rect.height
+}
+
+fn draw_slider(
+    d: &mut RaylibDrawHandle,
+    label: &str,
+    rect: Rectangle,
+    value: &mut f32,
+    min_value: f32,
+    max_value: f32,
+    mouse_pos: Vector2,
+    mouse_down: bool,
+) {
+    if mouse_down && point_in_rect(mouse_pos, rect) {
+        let t = ((mouse_pos.x - rect.x) / rect.width).clamp(0.0, 1.0);
+        *value = min_value + t * (max_value - min_value);
+    }
+
+    let normalized = ((*value - min_value) / (max_value - min_value)).clamp(0.0, 1.0);
+    let knob_x = rect.x + normalized * rect.width;
+
+    d.draw_text(
+        format!("{label}: {:.2}", *value).as_str(),
+        rect.x as i32,
+        (rect.y - 20.0) as i32,
+        18,
+        Color::BLACK,
+    );
+    d.draw_rectangle_rec(rect, Color::LIGHTGRAY);
+    d.draw_rectangle_lines_ex(rect, 1.0, Color::GRAY);
+    d.draw_circle_v(
+        Vector2::new(knob_x, rect.y + rect.height * 0.5),
+        rect.height * 0.6,
+        Color::DARKBLUE,
+    );
+}
+
 fn value_as_f32(value: Option<&TypedValue>) -> Option<f32> {
     match value {
         Some(v) if v.value_type == VALUE_TYPE_FLOAT32 => Some(f32::from_bits(v.payload)),
@@ -34,6 +79,10 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
         .build();
 
     rl.set_target_fps(30);
+
+    let mut map_scale = 1.0f32;
+    let mut map_center_x = FIELD_WIDTH_X_METERS * 0.5;
+    let mut map_center_y = FIELD_HEIGHT_Y_METERS * 0.5;
 
     while !rl.window_should_close() {
         let mut y = 0;
@@ -75,8 +124,57 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
         //     CommandSink::None => {}
         // }
 
+        let mouse_pos = rl.get_mouse_position();
+        let mouse_down = rl.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT);
+
         let mut d = rl.begin_drawing(&thread);
         d.clear_background(Color::WHITE);
+
+        let slider_x = WIDTH as f32 - SLIDER_WIDTH_PX - 20.0;
+        let slider_y0 = 50.0;
+
+        draw_slider(
+            &mut d,
+            "Map Scale",
+            Rectangle::new(slider_x, slider_y0, SLIDER_WIDTH_PX, SLIDER_HEIGHT_PX),
+            &mut map_scale,
+            0.25,
+            4.0,
+            mouse_pos,
+            mouse_down,
+        );
+
+        draw_slider(
+            &mut d,
+            "Center X (m)",
+            Rectangle::new(
+                slider_x,
+                slider_y0 + SLIDER_GAP_PX,
+                SLIDER_WIDTH_PX,
+                SLIDER_HEIGHT_PX,
+            ),
+            &mut map_center_x,
+            -2.0,
+            FIELD_WIDTH_X_METERS + 2.0,
+            mouse_pos,
+            mouse_down,
+        );
+
+        draw_slider(
+            &mut d,
+            "Center Y (m)",
+            Rectangle::new(
+                slider_x,
+                slider_y0 + 2.0 * SLIDER_GAP_PX,
+                SLIDER_WIDTH_PX,
+                SLIDER_HEIGHT_PX,
+            ),
+            &mut map_center_y,
+            -2.0,
+            FIELD_HEIGHT_Y_METERS + 2.0,
+            mouse_pos,
+            mouse_down,
+        );
 
         let screen_w = WIDTH as f32;
         let screen_h = HEIGHT as f32;
@@ -84,19 +182,16 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
         let usable_w = (screen_w - 2.0 * VIEW_MARGIN_PX).max(1.0);
         let usable_h = (screen_h - 2.0 * VIEW_MARGIN_PX).max(1.0);
 
-        let pixels_per_meter =
+        let base_pixels_per_meter =
             (usable_w / FIELD_WIDTH_X_METERS).min(usable_h / FIELD_HEIGHT_Y_METERS);
-
-        let field_px_w = FIELD_WIDTH_X_METERS * pixels_per_meter;
-        let field_px_h = FIELD_HEIGHT_Y_METERS * pixels_per_meter;
-
-        let field_origin_x = (screen_w - field_px_w) * 0.5;
-        let field_origin_y = (screen_h + field_px_h) * 0.5;
+        let pixels_per_meter = base_pixels_per_meter * map_scale;
+        let screen_center_x = screen_w * 0.5;
+        let screen_center_y = screen_h * 0.5;
 
         let world_to_screen = |x_m: f32, y_m: f32| -> Vector2 {
             Vector2::new(
-                field_origin_x + x_m * pixels_per_meter,
-                field_origin_y - y_m * pixels_per_meter,
+                screen_center_x + (x_m - map_center_x) * pixels_per_meter,
+                screen_center_y - (y_m - map_center_y) * pixels_per_meter,
             )
         };
 
@@ -183,6 +278,14 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
 
                 d.draw_circle_v(c_screen, circle.r * pixels_per_meter, Color::GREEN);
                 d.draw_circle_v(c_screen, circle.r * pixels_per_meter - 5.0, Color::WHITE);
+
+                d.draw_text(
+                    format!("Radius: {}", circle.r).as_str(),
+                    c_screen.x as i32,
+                    c_screen.y as i32,
+                    20,
+                    Color::BLACK,
+                )
             }
 
             let robot_screen = world_to_screen(position_x, position_y);
