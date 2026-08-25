@@ -24,6 +24,12 @@ const SLIDER_WIDTH_PX: f32 = 220.0;
 const SLIDER_HEIGHT_PX: f32 = 14.0;
 const SLIDER_GAP_PX: f32 = 26.0;
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum CenterMode {
+    RobotOffset,
+    MapCenter,
+}
+
 fn point_in_rect(point: Vector2, rect: Rectangle) -> bool {
     point.x >= rect.x
         && point.x <= rect.x + rect.width
@@ -38,14 +44,7 @@ fn draw_slider(
     value: &mut f32,
     min_value: f32,
     max_value: f32,
-    mouse_pos: Vector2,
-    mouse_down: bool,
 ) {
-    if mouse_down && point_in_rect(mouse_pos, rect) {
-        let t = ((mouse_pos.x - rect.x) / rect.width).clamp(0.0, 1.0);
-        *value = min_value + t * (max_value - min_value);
-    }
-
     let normalized = ((*value - min_value) / (max_value - min_value)).clamp(0.0, 1.0);
     let knob_x = rect.x + normalized * rect.width;
 
@@ -65,6 +64,20 @@ fn draw_slider(
     );
 }
 
+fn update_slider_value(
+    rect: Rectangle,
+    value: &mut f32,
+    min_value: f32,
+    max_value: f32,
+    mouse_pos: Vector2,
+    mouse_down: bool,
+) {
+    if mouse_down && point_in_rect(mouse_pos, rect) {
+        let t = ((mouse_pos.x - rect.x) / rect.width).clamp(0.0, 1.0);
+        *value = min_value + t * (max_value - min_value);
+    }
+}
+
 fn value_as_f32(value: Option<&TypedValue>) -> Option<f32> {
     match value {
         Some(v) if v.value_type == VALUE_TYPE_FLOAT32 => Some(f32::from_bits(v.payload)),
@@ -81,8 +94,12 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
     rl.set_target_fps(30);
 
     let mut map_scale = 1.0f32;
-    let mut map_center_x = FIELD_WIDTH_X_METERS * 0.5;
-    let mut map_center_y = FIELD_HEIGHT_Y_METERS * 0.5;
+    let mut center_mode = CenterMode::RobotOffset;
+    let mut robot_offset_x = 0.0f32;
+    let mut robot_offset_y = 0.0f32;
+    let mut map_center_x_slider = FIELD_WIDTH_X_METERS * 0.5;
+    let mut map_center_y_slider = FIELD_HEIGHT_Y_METERS * 0.5;
+    let mut prev_mouse_down = false;
 
     while !rl.window_should_close() {
         let mut y = 0;
@@ -126,6 +143,9 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
 
         let mouse_pos = rl.get_mouse_position();
         let mouse_down = rl.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT);
+        let mouse_pressed = mouse_down && !prev_mouse_down;
+        let toggle_pressed = rl.is_key_pressed(KeyboardKey::KEY_T);
+        prev_mouse_down = mouse_down;
 
         let mut d = rl.begin_drawing(&thread);
         d.clear_background(Color::WHITE);
@@ -133,9 +153,23 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
         let slider_x = WIDTH as f32 - SLIDER_WIDTH_PX - 20.0;
         let slider_y0 = 50.0;
 
-        draw_slider(
-            &mut d,
-            "Map Scale",
+        let mode_button = Rectangle::new(slider_x, slider_y0 - 38.0, SLIDER_WIDTH_PX, 24.0);
+        if mouse_pressed && point_in_rect(mouse_pos, mode_button) {
+            center_mode = if center_mode == CenterMode::RobotOffset {
+                CenterMode::MapCenter
+            } else {
+                CenterMode::RobotOffset
+            };
+        }
+        if toggle_pressed {
+            center_mode = if center_mode == CenterMode::RobotOffset {
+                CenterMode::MapCenter
+            } else {
+                CenterMode::RobotOffset
+            };
+        }
+
+        update_slider_value(
             Rectangle::new(slider_x, slider_y0, SLIDER_WIDTH_PX, SLIDER_HEIGHT_PX),
             &mut map_scale,
             0.25,
@@ -144,37 +178,84 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             mouse_down,
         );
 
-        draw_slider(
-            &mut d,
-            "Center X (m)",
-            Rectangle::new(
-                slider_x,
-                slider_y0 + SLIDER_GAP_PX,
-                SLIDER_WIDTH_PX,
-                SLIDER_HEIGHT_PX,
-            ),
-            &mut map_center_x,
-            -2.0,
-            FIELD_WIDTH_X_METERS + 2.0,
-            mouse_pos,
-            mouse_down,
-        );
+        match center_mode {
+            CenterMode::RobotOffset => {
+                update_slider_value(
+                    Rectangle::new(
+                        slider_x,
+                        slider_y0 + SLIDER_GAP_PX,
+                        SLIDER_WIDTH_PX,
+                        SLIDER_HEIGHT_PX,
+                    ),
+                    &mut robot_offset_x,
+                    -2.0,
+                    2.0,
+                    mouse_pos,
+                    mouse_down,
+                );
 
-        draw_slider(
-            &mut d,
-            "Center Y (m)",
-            Rectangle::new(
-                slider_x,
-                slider_y0 + 2.0 * SLIDER_GAP_PX,
-                SLIDER_WIDTH_PX,
-                SLIDER_HEIGHT_PX,
-            ),
-            &mut map_center_y,
-            -2.0,
-            FIELD_HEIGHT_Y_METERS + 2.0,
-            mouse_pos,
-            mouse_down,
-        );
+                update_slider_value(
+                    Rectangle::new(
+                        slider_x,
+                        slider_y0 + 2.0 * SLIDER_GAP_PX,
+                        SLIDER_WIDTH_PX,
+                        SLIDER_HEIGHT_PX,
+                    ),
+                    &mut robot_offset_y,
+                    -2.0,
+                    2.0,
+                    mouse_pos,
+                    mouse_down,
+                );
+            }
+            CenterMode::MapCenter => {
+                update_slider_value(
+                    Rectangle::new(
+                        slider_x,
+                        slider_y0 + SLIDER_GAP_PX,
+                        SLIDER_WIDTH_PX,
+                        SLIDER_HEIGHT_PX,
+                    ),
+                    &mut map_center_x_slider,
+                    -2.0,
+                    FIELD_WIDTH_X_METERS + 2.0,
+                    mouse_pos,
+                    mouse_down,
+                );
+
+                update_slider_value(
+                    Rectangle::new(
+                        slider_x,
+                        slider_y0 + 2.0 * SLIDER_GAP_PX,
+                        SLIDER_WIDTH_PX,
+                        SLIDER_HEIGHT_PX,
+                    ),
+                    &mut map_center_y_slider,
+                    -2.0,
+                    FIELD_HEIGHT_Y_METERS + 2.0,
+                    mouse_pos,
+                    mouse_down,
+                );
+            }
+        }
+
+        let telemetry = TELEMETRY.lock().unwrap().clone();
+        let map_center_x = match center_mode {
+            CenterMode::RobotOffset => {
+                value_as_f32(telemetry.values.get(&KEY_POSITION_X))
+                    .unwrap_or(FIELD_WIDTH_X_METERS * 0.5)
+                    + robot_offset_x
+            }
+            CenterMode::MapCenter => map_center_x_slider,
+        };
+        let map_center_y = match center_mode {
+            CenterMode::RobotOffset => {
+                value_as_f32(telemetry.values.get(&KEY_POSITION_Y))
+                    .unwrap_or(FIELD_HEIGHT_Y_METERS * 0.5)
+                    + robot_offset_y
+            }
+            CenterMode::MapCenter => map_center_y_slider,
+        };
 
         let screen_w = WIDTH as f32;
         let screen_h = HEIGHT as f32;
@@ -204,8 +285,6 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
         d.draw_line_ex(br, tr, 2.0, Color::BLACK);
         d.draw_line_ex(tr, tl, 2.0, Color::BLACK);
         d.draw_line_ex(tl, bl, 2.0, Color::BLACK);
-
-        let telemetry = TELEMETRY.lock().unwrap().clone();
 
         if !telemetry.values.is_empty() || !telemetry.lidar_points.is_empty() {
             let heading = value_as_f32(telemetry.values.get(&KEY_HEADING)).unwrap_or(0.0);
@@ -382,6 +461,91 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             );
         } else {
             d.draw_text("No Telemetry", 20, 20, 20, Color::BLACK);
+        }
+
+        d.draw_rectangle_rec(mode_button, Color::LIGHTGRAY);
+        d.draw_rectangle_lines_ex(mode_button, 1.0, Color::GRAY);
+        let mode_label = if center_mode == CenterMode::RobotOffset {
+            "Mode: Robot Offset (T)"
+        } else {
+            "Mode: Map Center (T)"
+        };
+        d.draw_text(
+            mode_label,
+            (mode_button.x + 8.0) as i32,
+            (mode_button.y + 4.0) as i32,
+            16,
+            Color::BLACK,
+        );
+
+        draw_slider(
+            &mut d,
+            "Map Scale",
+            Rectangle::new(slider_x, slider_y0, SLIDER_WIDTH_PX, SLIDER_HEIGHT_PX),
+            &mut map_scale,
+            0.25,
+            4.0,
+        );
+
+        match center_mode {
+            CenterMode::RobotOffset => {
+                draw_slider(
+                    &mut d,
+                    "Offset X (m)",
+                    Rectangle::new(
+                        slider_x,
+                        slider_y0 + SLIDER_GAP_PX,
+                        SLIDER_WIDTH_PX,
+                        SLIDER_HEIGHT_PX,
+                    ),
+                    &mut robot_offset_x,
+                    -2.0,
+                    2.0,
+                );
+
+                draw_slider(
+                    &mut d,
+                    "Offset Y (m)",
+                    Rectangle::new(
+                        slider_x,
+                        slider_y0 + 2.0 * SLIDER_GAP_PX,
+                        SLIDER_WIDTH_PX,
+                        SLIDER_HEIGHT_PX,
+                    ),
+                    &mut robot_offset_y,
+                    -2.0,
+                    2.0,
+                );
+            }
+            CenterMode::MapCenter => {
+                draw_slider(
+                    &mut d,
+                    "Center X (m)",
+                    Rectangle::new(
+                        slider_x,
+                        slider_y0 + SLIDER_GAP_PX,
+                        SLIDER_WIDTH_PX,
+                        SLIDER_HEIGHT_PX,
+                    ),
+                    &mut map_center_x_slider,
+                    -2.0,
+                    FIELD_WIDTH_X_METERS + 2.0,
+                );
+
+                draw_slider(
+                    &mut d,
+                    "Center Y (m)",
+                    Rectangle::new(
+                        slider_x,
+                        slider_y0 + 2.0 * SLIDER_GAP_PX,
+                        SLIDER_WIDTH_PX,
+                        SLIDER_HEIGHT_PX,
+                    ),
+                    &mut map_center_y_slider,
+                    -2.0,
+                    FIELD_HEIGHT_Y_METERS + 2.0,
+                );
+            }
         }
     }
 
