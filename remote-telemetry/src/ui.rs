@@ -146,6 +146,14 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
                 (world_x, world_y)
             };
 
+            d.draw_text(
+                format!("Num Points: {}", telemetry.lidar_points.len()).as_str(),
+                20,
+                200,
+                20,
+                Color::BLACK,
+            );
+
             for point in telemetry.lidar_points {
                 let lidar_x_robot_m = point.x_mm as f32 / 1000.0;
                 let lidar_y_robot_m = point.y_mm as f32 / 1000.0;

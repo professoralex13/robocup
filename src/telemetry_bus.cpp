@@ -147,29 +147,33 @@ void publish_lidar_points(LidarProcessingResult processing_response) {
 
     int incr = 0;
 
-    for (int i = 0; i < processing_response.line_segments.size(); i++) {
-        auto cluster = processing_response.line_segments[i];
+    for (int j = 0; j < processing_response.line_segments.size(); j++) {
+        auto cluster = processing_response.line_segments[j];
 
-        for (auto &point : cluster) {
+        for (int i = cluster.start; i < cluster.start + cluster.count; i++) {
+            auto point = processing_response.points[i];
+
             packed_points[incr] = {
                 .x_mm = (int16_t)(point.position.x() * 1000.0f),
                 .y_mm = (int16_t)(point.position.y() * 1000.0f),
                 .intensity = point.intensity,
-                .flags = (uint8_t)i,
+                .flags = (uint8_t)j,
             };
 
             incr++;
         }
     }
 
-    constexpr uint16_t payload_len = sizeof(uint16_t) + MAX_LIDAR_POINTS * sizeof(LidarPointEntry);
-    uint8_t payload[payload_len] = {0};
+    uint16_t count = incr;
 
-    uint16_t count = MAX_LIDAR_POINTS;
+    constexpr uint16_t MAX_PAYLOAD_LEN =
+        sizeof(uint16_t) + MAX_LIDAR_POINTS * sizeof(LidarPointEntry);
+    uint8_t payload[MAX_PAYLOAD_LEN] = {0};
+
     memcpy(payload, &count, sizeof(count));
-    memcpy(payload + sizeof(uint16_t), packed_points, MAX_LIDAR_POINTS * sizeof(LidarPointEntry));
+    memcpy(payload + sizeof(count), packed_points, count * sizeof(LidarPointEntry));
 
-    write_frame(FrameType::LidarPoints, payload, payload_len);
+    write_frame(FrameType::LidarPoints, payload, sizeof(count) + count * sizeof(LidarPointEntry));
 }
 
 } // namespace telemetry

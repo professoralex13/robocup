@@ -46,7 +46,7 @@ float smallest_angular_difference(float a, float b) {
 
 void upsert_point_by_angle(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> &points,
                            const LidarResponsePoint &new_point) {
-    if (points.size() > 300) {
+    if (points.size() > 350) {
         points.erase(points.begin());
     }
 

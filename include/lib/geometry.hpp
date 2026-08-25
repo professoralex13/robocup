@@ -1,3 +1,4 @@
+#include "lib/lidar_processing.hpp"
 #include "lidar.hpp"
 
 struct LineFit {
@@ -5,4 +6,4 @@ struct LineFit {
     float intercept;
 };
 
-LineFit line_fit(std::span<LidarResponsePoint> points);
+LineFit line_fit(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points, PointSpan range);

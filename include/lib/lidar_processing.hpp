@@ -4,8 +4,13 @@
 #include "etl/vector.h"
 #include "lib/lidar.hpp"
 
+struct PointSpan {
+    size_t start;
+    size_t count;
+};
+
 // Worst case every point is its own cluster, so cap at MAX_POINTS
-using ClusterList = etl::vector<std::span<LidarResponsePoint>, MAX_LIDAR_POINTS>;
+using ClusterList = etl::vector<PointSpan, MAX_LIDAR_POINTS>;
 
 struct LidarProcessingResult {
     etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points;

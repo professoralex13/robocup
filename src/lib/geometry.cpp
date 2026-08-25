@@ -1,17 +1,18 @@
 #include "lib/geometry.hpp"
 
-LineFit line_fit(std::span<LidarResponsePoint> points) {
+LineFit line_fit(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points, PointSpan range) {
     float sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
 
-    for (auto &r : points) {
-        auto &p = r.position;
+    for (int i = range.start; i < range.start + range.count; i++) {
+        auto &p = points[i].position;
+
         sum_x += p.x();
         sum_y += p.y();
         sum_xy += p.x() * p.y();
         sum_xx += p.x() * p.x();
     }
 
-    int n = points.size();
+    int n = range.count;
 
     float denom = n * sum_xx - sum_x * sum_x;
 

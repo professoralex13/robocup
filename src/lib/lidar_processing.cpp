@@ -23,43 +23,45 @@ ClusterList get_coarse_clusters(std::span<LidarResponsePoint> points) {
         if (coarse_cluster_check(points[i], points[start + count - 1])) {
             count++;
         } else {
-            clusters.push_back(points.subspan(start, count));
+            clusters.push_back({start, count});
             start = i;
             count = 1;
         }
     }
 
-    clusters.push_back(points.subspan(start, count));
+    clusters.push_back({start, count});
 
-    if (clusters.size() >= 2) {
-        auto first = clusters.front();
-        auto last = clusters.back();
+    // TODO: This will need fixing
 
-        if (coarse_cluster_check(first.front(), last.back())) {
-            std::rotate(points.begin(), points.begin() + first.size(), points.end());
+    // if (clusters.size() >= 2) {
+    //     auto first = clusters.front();
+    //     auto last = clusters.back();
 
-            // Every span computed before the rotate is now stale — must rebuild.
-            ClusterList updated;
-            updated.push_back(points.subspan(points.size() - last.size() - first.size(),
-                                             last.size() + first.size()));
+    //     if (coarse_cluster_check(points[first.start], points[last.start + last.count - 1])) {
+    //         std::rotate(points.begin(), points.begin() + first.count, points.end());
 
-            size_t offset = updated[0].size();
+    //         // Every span computed before the rotate is now stale — must rebuild.
+    //         ClusterList updated = {{.start = points.size() - last.count - first.count,
+    //                                 .count = last.count + first.count}};
 
-            for (size_t k = 1; k + 1 < clusters.size(); k++) {
-                updated.push_back(points.subspan(offset, clusters[k].size()));
-                offset += clusters[k].size();
-            }
+    //         size_t offset = updated[0].count;
 
-            clusters = updated;
-        }
-    }
+    //         for (size_t k = 1; k + 1 < clusters.size(); k++) {
+    //             updated.push_back({offset, clusters[k].count});
+    //             offset += clusters[k].count;
+    //         }
+
+    //         clusters = updated;
+    //     }
+    // }
 
     return clusters;
 }
 
 const float LINE_NOISE_THRESHOLD = 0.02f;
 
-ClusterList fit_clusters(const ClusterList &coarse_clusters) {
+ClusterList fit_clusters(const ClusterList &coarse_clusters,
+                         etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points) {
     ClusterList work_stack;
     ClusterList line_segments;
 
@@ -71,13 +73,14 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters) {
         auto range = work_stack.back();
         work_stack.pop_back();
 
-        auto [slope, intercept] = line_fit(range);
+        auto [slope, intercept] = line_fit(points, range);
         float norm = sqrtf(slope * slope + 1);
         float furthest_distance = 0.0f;
 
-        int split = 0;
-        for (int i = 0; i < range.size(); i++) {
-            auto p = range[i].position;
+        size_t split = 0;
+
+        for (int i = 0; i < range.count; i++) {
+            auto p = points[range.start + i].position;
 
             float distance = fabsf(slope * p.x() - p.y() + intercept) / norm;
 
@@ -92,23 +95,23 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters) {
             continue;
         }
 
-        std::span<LidarResponsePoint> first, second;
+        PointSpan first, second;
 
-        if (split == range.size() - 1) {
+        if (split == range.count - 1) {
             // Furthest point is the last point in range. subspan(0, split+1) would be
             // the whole range and subspan(split+1) would be empty — infinite loop.
-            first = range.subspan(0, split);
-            second = range.subspan(split, 0);
+            first = {range.start, split};
+            second = {range.start + split, 0};
         } else {
-            first = range.subspan(0, split + 1);
-            second = range.subspan(split + 1);
+            first = {range.start, split + 1};
+            second = {range.start + split + 1, range.count - split + 1};
         }
 
-        if (first.size() >= 2) {
+        if (first.count >= 2) {
             work_stack.push_back(first);
         }
 
-        if (second.size() >= 2) {
+        if (second.count >= 2) {
             work_stack.push_back(second);
         }
     }
@@ -124,12 +127,12 @@ LidarProcessing::process_points(std::span<LidarResponsePoint> unsorted_points) {
     std::sort(points.begin(), points.end(), [](auto a, auto b) { return a.angle < b.angle; });
 
     ClusterList coarse_clusters = get_coarse_clusters(points);
-    ClusterList line_segments = fit_clusters(coarse_clusters);
+    ClusterList line_segments = fit_clusters(coarse_clusters, points);
 
     LidarProcessingResult result;
 
+    result.line_segments = coarse_clusters;
     result.points = points;
-    result.line_segments = line_segments;
 
     return result;
 }
