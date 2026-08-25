@@ -273,5 +273,8 @@ fn apply_frame(frame: TelemetryFrame) {
         TelemetryFrame::Lidar(points) => {
             telemetry.lidar_points = points;
         }
+        TelemetryFrame::LidarProcessing(processing) => {
+            telemetry.lidar_processing = processing;
+        }
     }
 }

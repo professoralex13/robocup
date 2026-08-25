@@ -14,6 +14,7 @@ constexpr uint8_t FRAME_VERSION = 1;
 enum class FrameType : uint8_t {
     Values = 1,
     LidarPoints = 2,
+    LidarProcessing = 3,
 };
 
 struct __attribute__((packed)) FrameHeader {
@@ -142,29 +143,21 @@ size_t flush_values(uint16_t max_entries_per_frame) {
     return to_send;
 }
 
-void publish_lidar_points(LidarProcessingResult processing_response) {
+void publish_lidar_points(std::span<LidarResponsePoint> points) {
     LidarPointEntry packed_points[MAX_LIDAR_POINTS] = {};
 
-    int incr = 0;
+    for (int i = 0; i < points.size(); i++) {
+        auto point = points[i];
 
-    for (int j = 0; j < processing_response.line_segments.size(); j++) {
-        auto cluster = processing_response.line_segments[j];
-
-        for (int i = cluster.start; i < cluster.start + cluster.count; i++) {
-            auto point = processing_response.points[i];
-
-            packed_points[incr] = {
-                .x_mm = (int16_t)(point.position.x() * 1000.0f),
-                .y_mm = (int16_t)(point.position.y() * 1000.0f),
-                .intensity = point.intensity,
-                .flags = (uint8_t)j,
-            };
-
-            incr++;
-        }
+        packed_points[i] = {
+            .x_mm = (int16_t)(point.position.x() * 1000.0f),
+            .y_mm = (int16_t)(point.position.y() * 1000.0f),
+            .intensity = point.intensity,
+            .flags = 0,
+        };
     }
 
-    uint16_t count = incr;
+    uint16_t count = points.size();
 
     constexpr uint16_t MAX_PAYLOAD_LEN =
         sizeof(uint16_t) + MAX_LIDAR_POINTS * sizeof(LidarPointEntry);
@@ -174,6 +167,51 @@ void publish_lidar_points(LidarProcessingResult processing_response) {
     memcpy(payload + sizeof(count), packed_points, count * sizeof(LidarPointEntry));
 
     write_frame(FrameType::LidarPoints, payload, sizeof(count) + count * sizeof(LidarPointEntry));
+}
+
+struct TelemetryCircleFit {
+    float cx;
+    float cy;
+    float r;
+
+    float radius_deviation;
+};
+
+void publish_lidar_processing(LidarProcessingResult result) {
+    uint16_t lines_count = result.line_segments.size();
+    LineFit line_fits[MAX_LIDAR_POINTS] = {};
+    uint16_t circles_count = result.circles.size();
+    TelemetryCircleFit circle_fits[MAX_LIDAR_POINTS] = {};
+
+    for (int i = 0; i < result.line_segments.size(); i++) {
+        line_fits[i] = result.line_segments[i];
+    }
+
+    for (int i = 0; i < result.circles.size(); i++) {
+        circle_fits[i] = {
+            result.circles[i].xc,
+            result.circles[i].yc,
+            result.circles[i].r,
+            result.circles[i].radius_deviation,
+        };
+    }
+
+    constexpr uint16_t MAX_PAYLOAD_LEN = sizeof(lines_count) + MAX_LIDAR_POINTS * sizeof(LineFit) +
+                                         sizeof(circles_count) +
+                                         MAX_LIDAR_POINTS * sizeof(TelemetryCircleFit);
+
+    uint8_t payload[MAX_PAYLOAD_LEN] = {0};
+
+    memcpy(payload, &lines_count, sizeof(lines_count));
+    memcpy(payload + sizeof(lines_count), line_fits, lines_count * sizeof(LineFit));
+    memcpy(payload + sizeof(lines_count) + lines_count * sizeof(LineFit), &circles_count,
+           sizeof(circles_count));
+    memcpy(payload + sizeof(lines_count) + lines_count * sizeof(LineFit) + sizeof(circles_count),
+           circle_fits, circles_count * sizeof(TelemetryCircleFit));
+
+    write_frame(FrameType::LidarProcessing, payload,
+                sizeof(lines_count) + lines_count * sizeof(LineFit) + sizeof(circles_count) +
+                    circles_count * sizeof(TelemetryCircleFit));
 }
 
 } // namespace telemetry

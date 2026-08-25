@@ -14,7 +14,8 @@ void LidarProcessingTask::loop() {
 
     auto result = processing.process_points(points);
 
-    telemetry::publish_lidar_points(result);
+    telemetry::publish_lidar_points(points);
+    telemetry::publish_lidar_processing(result);
 
     // if (now >= next_lidar_telemetry_publish) {
     //     LidarProcessing processing;

@@ -1,6 +1,6 @@
 #include "lib/geometry.hpp"
 
-LineFit line_fit(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points, PointSpan range) {
+LineFit fit_line(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points, PointSpan range) {
     float sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
 
     for (int i = range.start; i < range.start + range.count; i++) {
@@ -16,14 +16,31 @@ LineFit line_fit(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points, Point
 
     float denom = n * sum_xx - sum_x * sum_x;
 
+    auto start_point = points[range.start].position;
+    auto end_point = points[range.start + range.count - 1].position;
+
     if (fabsf(denom) < 1e-6f)
-        return {0.0f, sum_y / n}; // degenerate/near-vertical guard
+        // TODO: Return start/end points
+        return {0.0, 0.0, 0.0, 0.0, 0.0f, sum_y / n}; // degenerate/near-vertical guard
 
     float slope = (n * sum_xy - sum_x * sum_y) / denom;
-    return {slope, (sum_y - slope * sum_x) / n};
+    float intercept = (sum_y - slope * sum_x) / n;
+
+    float x1 =
+        (start_point.x() + slope * start_point.y() - slope * intercept) / (1 + slope * slope);
+
+    float x2 = (end_point.x() + slope * end_point.y() - slope * intercept) / (1 + slope * slope);
+
+    float y1 = (slope * start_point.x() + slope * slope * start_point.y() + intercept) /
+               (1 + slope * slope);
+
+    float y2 =
+        (slope * end_point.x() + slope * slope * end_point.y() + intercept) / (1 + slope * slope);
+
+    return {x1, x2, y1, y2, slope, intercept};
 }
 
-CircleFit circle_fit(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points, PointSpan range) {
+CircleFit fit_circle(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points, PointSpan range) {
     assert(range.count >= 3);
 
     float sum_x = 0, sum_y = 0;

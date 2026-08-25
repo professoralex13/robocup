@@ -60,11 +60,11 @@ ClusterList get_coarse_clusters(std::span<LidarResponsePoint> points) {
 
 const float LINE_NOISE_THRESHOLD = 0.02f;
 
-ClusterList fit_clusters(const ClusterList &coarse_clusters,
-                         etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points) {
+LidarProcessingResult fit_clusters(const ClusterList &coarse_clusters,
+                                   etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points) {
     ClusterList work_stack;
-    ClusterList line_segments;
-    ClusterList circle_segments;
+    etl::vector<LineFit, MAX_LIDAR_POINTS> line_fits;
+    etl::vector<CircleFit, MAX_LIDAR_POINTS> circle_fits;
 
     for (auto s : coarse_clusters) {
         work_stack.push_back(s);
@@ -75,19 +75,19 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters,
         work_stack.pop_back();
 
         if (range.count >= 3) {
-            auto [cx, cy, r, worst_circle_index, worst_circle_distance, radius_deviation] =
-                circle_fit(points, range);
+            auto circle_fit = fit_circle(points, range);
 
-            if (MIN_CIRCLE_RADIUS < r && r < MAX_CIRCLE_RADIUS &&
-                radius_deviation < MAX_CIRCLE_NOISE) {
-                circle_segments.push_back(range);
+            if (MIN_CIRCLE_RADIUS < circle_fit.r && circle_fit.r < MAX_CIRCLE_RADIUS &&
+                circle_fit.radius_deviation < MAX_CIRCLE_NOISE) {
+                circle_fits.push_back(circle_fit);
+
                 continue;
             }
         }
 
-        auto [slope, intercept] = line_fit(points, range);
+        auto line = fit_line(points, range);
 
-        float norm = sqrtf(slope * slope + 1);
+        float norm = sqrtf(line.slope * line.slope + 1);
         float furthest_distance = 0.0f;
 
         size_t split = 0;
@@ -95,7 +95,7 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters,
         for (int i = 0; i < range.count; i++) {
             auto p = points[range.start + i].position;
 
-            float distance = fabsf(slope * p.x() - p.y() + intercept) / norm;
+            float distance = fabsf(line.slope * p.x() - p.y() + line.intercept) / norm;
 
             if (distance > furthest_distance) {
                 furthest_distance = distance;
@@ -104,7 +104,7 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters,
         }
 
         if (furthest_distance <= LINE_NOISE_THRESHOLD) {
-            line_segments.push_back(range);
+            line_fits.push_back(line);
             continue;
         }
 
@@ -130,7 +130,7 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters,
         }
     }
 
-    return circle_segments;
+    return {line_fits, circle_fits};
 }
 
 LidarProcessingResult
@@ -142,12 +142,5 @@ LidarProcessing::process_points(std::span<LidarResponsePoint> unsorted_points) {
 
     ClusterList coarse_clusters = get_coarse_clusters(points);
 
-    ClusterList line_segments = fit_clusters(coarse_clusters, points);
-
-    LidarProcessingResult result;
-
-    result.line_segments = line_segments;
-    result.points = points;
-
-    return result;
+    return fit_clusters(coarse_clusters, points);
 }

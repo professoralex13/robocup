@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use raylib::prelude::*;
+use raylib::{ffi::EndScissorMode, prelude::*};
 use zerocopy::IntoBytes;
 
 use crate::{
@@ -163,11 +163,26 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
 
                 let screen = world_to_screen(lidar_x_world, lidar_y_world);
 
-                d.draw_circle_v(
-                    screen,
-                    2.0,
-                    Color::color_from_hsv(360.0 / 20.0 * point.flags as f32, 1.0, 1.0),
-                );
+                d.draw_circle_v(screen, 2.0, Color::RED);
+            }
+
+            for line in telemetry.lidar_processing.line_fits {
+                let (x1_world, y1_world) = robot_frame_to_world(line.x1, line.y1);
+                let (x2_world, y2_world) = robot_frame_to_world(line.x2, line.y2);
+
+                let start_screen = world_to_screen(x1_world, y1_world);
+                let end_screen = world_to_screen(x2_world, y2_world);
+
+                d.draw_line_ex(start_screen, end_screen, 2.0, Color::GREEN);
+            }
+
+            for circle in telemetry.lidar_processing.circle_fits {
+                let (cx_world, cy_world) = robot_frame_to_world(circle.cx, circle.cy);
+
+                let c_screen = world_to_screen(cx_world, cy_world);
+
+                d.draw_circle_v(c_screen, circle.r * pixels_per_meter, Color::GREEN);
+                d.draw_circle_v(c_screen, circle.r * pixels_per_meter - 5.0, Color::WHITE);
             }
 
             let robot_screen = world_to_screen(position_x, position_y);
