@@ -64,6 +64,7 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters,
                          etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points) {
     ClusterList work_stack;
     ClusterList line_segments;
+    ClusterList circle_segments;
 
     for (auto s : coarse_clusters) {
         work_stack.push_back(s);
@@ -73,7 +74,19 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters,
         auto range = work_stack.back();
         work_stack.pop_back();
 
+        if (range.count >= 3) {
+            auto [cx, cy, r, worst_circle_index, worst_circle_distance, radius_deviation] =
+                circle_fit(points, range);
+
+            if (MIN_CIRCLE_RADIUS < r && r < MAX_CIRCLE_RADIUS &&
+                radius_deviation < MAX_CIRCLE_NOISE) {
+                circle_segments.push_back(range);
+                continue;
+            }
+        }
+
         auto [slope, intercept] = line_fit(points, range);
+
         float norm = sqrtf(slope * slope + 1);
         float furthest_distance = 0.0f;
 
@@ -100,6 +113,7 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters,
         if (split == range.count - 1) {
             // Furthest point is the last point in range. subspan(0, split+1) would be
             // the whole range and subspan(split+1) would be empty — infinite loop.
+
             first = {range.start, split};
             second = {range.start + split, 0};
         } else {
@@ -116,7 +130,7 @@ ClusterList fit_clusters(const ClusterList &coarse_clusters,
         }
     }
 
-    return line_segments;
+    return circle_segments;
 }
 
 LidarProcessingResult
@@ -127,11 +141,12 @@ LidarProcessing::process_points(std::span<LidarResponsePoint> unsorted_points) {
     std::sort(points.begin(), points.end(), [](auto a, auto b) { return a.angle < b.angle; });
 
     ClusterList coarse_clusters = get_coarse_clusters(points);
+
     ClusterList line_segments = fit_clusters(coarse_clusters, points);
 
     LidarProcessingResult result;
 
-    result.line_segments = coarse_clusters;
+    result.line_segments = line_segments;
     result.points = points;
 
     return result;
