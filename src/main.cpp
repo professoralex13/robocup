@@ -49,7 +49,7 @@ std::array<TimingData, NUM_TASKS> task_timing_data = {{{
     0,
 }}};
 
-#define LOG_TASK_STATS true
+#define LOG_TASK_STATS false
 
 void setup() {
     for (size_t i = 0; i < NUM_TASKS; i++) {

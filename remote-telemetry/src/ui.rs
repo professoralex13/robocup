@@ -286,6 +286,44 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
         d.draw_line_ex(tr, tl, 2.0, Color::BLACK);
         d.draw_line_ex(tl, bl, 2.0, Color::BLACK);
 
+        if let Some(grid) = telemetry.occupancy_grid.as_ref() {
+            let tile_size_m = grid.tile_size_mm as f32 / 1000.0;
+
+            for y in 0..grid.height as usize {
+                for x in 0..grid.width as usize {
+                    let index = y * grid.width as usize + x;
+                    let score = grid.scores[index];
+
+                    if score == 127 {
+                        continue;
+                    }
+
+                    let world_x = x as f32 * tile_size_m;
+                    let world_y = y as f32 * tile_size_m;
+
+                    let p0 = world_to_screen(world_x, world_y);
+                    let p1 = world_to_screen(world_x + tile_size_m, world_y + tile_size_m);
+
+                    let rect = Rectangle::new(
+                        p0.x.min(p1.x),
+                        p0.y.min(p1.y),
+                        (p1.x - p0.x).abs().max(1.0),
+                        (p1.y - p0.y).abs().max(1.0),
+                    );
+
+                    let color = if score > 127 {
+                        let strength = ((score as i32 - 127) as f32 / 128.0).clamp(0.0, 1.0);
+                        Color::new(220, 45, 45, (30.0 + 120.0 * strength) as u8)
+                    } else {
+                        let strength = ((127 - score as i32) as f32 / 127.0).clamp(0.0, 1.0);
+                        Color::new(45, 180, 45, (20.0 + 90.0 * strength) as u8)
+                    };
+
+                    d.draw_rectangle_rec(rect, color);
+                }
+            }
+        }
+
         if !telemetry.values.is_empty() || !telemetry.lidar_points.is_empty() {
             let heading = value_as_f32(telemetry.values.get(&KEY_HEADING)).unwrap_or(0.0);
             let heading_sin = heading.sin();

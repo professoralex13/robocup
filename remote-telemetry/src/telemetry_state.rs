@@ -1,9 +1,9 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     sync::{LazyLock, Mutex},
 };
 
-use crate::protocol::{LidarPoint, LidarProcessing};
+use crate::protocol::{LidarPoint, LidarProcessing, OccupancyGrid};
 
 #[derive(Copy, Clone, Debug)]
 pub struct TypedValue {
@@ -16,6 +16,7 @@ pub struct TelemetrySnapshot {
     pub values: HashMap<u16, TypedValue>,
     pub lidar_points: Vec<LidarPoint>,
     pub lidar_processing: LidarProcessing,
+    pub occupancy_grid: Option<OccupancyGrid>,
 }
 
 impl TelemetrySnapshot {
@@ -27,6 +28,7 @@ impl TelemetrySnapshot {
                 line_fits: vec![],
                 circle_fits: vec![],
             },
+            occupancy_grid: None,
         }
     }
 }

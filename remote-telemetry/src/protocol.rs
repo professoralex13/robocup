@@ -6,6 +6,7 @@ pub const TELEMETRY_VERSION: u8 = 1;
 pub const FRAME_TYPE_VALUES: u8 = 1;
 pub const FRAME_TYPE_LIDAR: u8 = 2;
 pub const FRAME_TYPE_LIDAR_PROCESSING: u8 = 3;
+pub const FRAME_TYPE_OCCUPANCY_GRID: u8 = 4;
 
 pub const VALUE_TYPE_FLOAT32: u8 = 1;
 pub const VALUE_TYPE_INT32: u8 = 2;
@@ -72,10 +73,19 @@ pub struct LidarProcessing {
 }
 
 #[derive(Clone, Debug)]
+pub struct OccupancyGrid {
+    pub width: u16,
+    pub height: u16,
+    pub tile_size_mm: u16,
+    pub scores: Vec<u8>,
+}
+
+#[derive(Clone, Debug)]
 pub enum TelemetryFrame {
     Values(Vec<ValueEntry>),
     Lidar(Vec<LidarPoint>),
     LidarProcessing(LidarProcessing),
+    OccupancyGrid(OccupancyGrid),
 }
 
 pub fn parse_frame(frame_type: u8, payload: &[u8]) -> Option<TelemetryFrame> {
@@ -142,34 +152,34 @@ pub fn parse_frame(frame_type: u8, payload: &[u8]) -> Option<TelemetryFrame> {
             Some(TelemetryFrame::Lidar(points))
         }
         FRAME_TYPE_LIDAR_PROCESSING => {
-            const line_size: usize = size_of::<LineFit>();
+            const LINE_SIZE: usize = size_of::<LineFit>();
 
             let lines_count = u16::from_le_bytes([payload[0], payload[1]]) as usize;
-            let lines_body = &payload[2..2 + lines_count * line_size];
+            let lines_body = &payload[2..2 + lines_count * LINE_SIZE];
 
             let mut lines = Vec::with_capacity(lines_count);
 
             for i in 0..lines_count {
                 let data =
-                    LineFit::read_from_bytes(&lines_body[i * line_size..i * line_size + line_size])
+                    LineFit::read_from_bytes(&lines_body[i * LINE_SIZE..i * LINE_SIZE + LINE_SIZE])
                         .unwrap();
 
                 lines.push(data);
             }
 
-            const circle_size: usize = size_of::<CircleFit>();
+            const CIRCLE_SIZE: usize = size_of::<CircleFit>();
 
             let circles_count = u16::from_le_bytes([
-                payload[2 + lines_count * line_size],
-                payload[2 + lines_count * line_size + 1],
+                payload[2 + lines_count * LINE_SIZE],
+                payload[2 + lines_count * LINE_SIZE + 1],
             ]) as usize;
-            let circles_body = &payload[4 + lines_count * line_size..];
+            let circles_body = &payload[4 + lines_count * LINE_SIZE..];
 
             let mut circles = Vec::with_capacity(circles_count);
 
             for i in 0..circles_count {
                 let data = CircleFit::read_from_bytes(
-                    &circles_body[i * circle_size..(i + 1) * circle_size],
+                    &circles_body[i * CIRCLE_SIZE..(i + 1) * CIRCLE_SIZE],
                 )
                 .unwrap();
 
@@ -179,6 +189,29 @@ pub fn parse_frame(frame_type: u8, payload: &[u8]) -> Option<TelemetryFrame> {
             Some(TelemetryFrame::LidarProcessing(LidarProcessing {
                 line_fits: lines,
                 circle_fits: circles,
+            }))
+        }
+        FRAME_TYPE_OCCUPANCY_GRID => {
+            if payload.len() < 6 {
+                return None;
+            }
+
+            let width = u16::from_le_bytes([payload[0], payload[1]]);
+            let height = u16::from_le_bytes([payload[2], payload[3]]);
+            let tile_size_mm = u16::from_le_bytes([payload[4], payload[5]]);
+
+            let cell_count = width as usize * height as usize;
+            if payload.len() < 6 + cell_count {
+                return None;
+            }
+
+            let scores = payload[6..6 + cell_count].to_vec();
+
+            Some(TelemetryFrame::OccupancyGrid(OccupancyGrid {
+                width,
+                height,
+                tile_size_mm,
+                scores,
             }))
         }
         _ => None,

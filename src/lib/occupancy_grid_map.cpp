@@ -79,8 +79,11 @@ void OccupancyGridMap::apply_beam(const Eigen::Vector2f &origin_world,
         return;
     }
 
-    if (!this->world_to_grid(hit_world, hit_x, hit_y)) {
-        return;
+    bool endpoint_in_grid = this->world_to_grid(hit_world, hit_x, hit_y);
+
+    if (!endpoint_in_grid) {
+        hit_x = (int)floorf(hit_world.x() / TILE_SIZE_METERS);
+        hit_y = (int)floorf(hit_world.y() / TILE_SIZE_METERS);
     }
 
     int x = origin_x;
@@ -93,24 +96,40 @@ void OccupancyGridMap::apply_beam(const Eigen::Vector2f &origin_world,
     int error = dx + dy;
 
     while (true) {
-        if (x == hit_x && y == hit_y) {
+        if (endpoint_in_grid && x == hit_x && y == hit_y) {
+            this->increase_cell(x, y);
+            break;
+        }
+
+        int e2 = 2 * error;
+
+        int next_x = x;
+        int next_y = y;
+        int next_error = error;
+
+        if (e2 >= dy) {
+            next_error += dy;
+            next_x += sx;
+        }
+
+        if (e2 <= dx) {
+            next_error += dx;
+            next_y += sy;
+        }
+
+        bool next_out_of_bounds =
+            next_x < 0 || next_y < 0 || next_x >= (int)GRID_WIDTH || next_y >= (int)GRID_HEIGHT;
+
+        if (!endpoint_in_grid && next_out_of_bounds) {
             this->increase_cell(x, y);
             break;
         }
 
         this->decrease_cell(x, y);
 
-        int e2 = 2 * error;
-
-        if (e2 >= dy) {
-            error += dy;
-            x += sx;
-        }
-
-        if (e2 <= dx) {
-            error += dx;
-            y += sy;
-        }
+        x = next_x;
+        y = next_y;
+        error = next_error;
     }
 }
 

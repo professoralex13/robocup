@@ -3,6 +3,7 @@
 #include "config.hpp"
 #include "lib/lidar.hpp"
 #include "lib/lidar_processing.hpp"
+#include "lib/occupancy_grid_map.hpp"
 #include <Arduino.h>
 #include <array>
 #include <cstdint>
@@ -44,5 +45,6 @@ bool publish_bool(uint16_t key, bool value);
 size_t flush_values(uint16_t max_entries_per_frame = 32);
 void publish_lidar_points(std::span<LidarResponsePoint> points);
 void publish_lidar_processing(LidarProcessingResult result);
+void publish_occupancy_grid(const OccupancyGridMap &grid);
 
 } // namespace telemetry

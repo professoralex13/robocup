@@ -276,5 +276,8 @@ fn apply_frame(frame: TelemetryFrame) {
         TelemetryFrame::LidarProcessing(processing) => {
             telemetry.lidar_processing = processing;
         }
+        TelemetryFrame::OccupancyGrid(grid) => {
+            telemetry.occupancy_grid = Some(grid);
+        }
     }
 }

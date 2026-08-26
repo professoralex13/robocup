@@ -15,6 +15,7 @@ enum class FrameType : uint8_t {
     Values = 1,
     LidarPoints = 2,
     LidarProcessing = 3,
+    OccupancyGrid = 4,
 };
 
 struct __attribute__((packed)) FrameHeader {
@@ -58,8 +59,6 @@ void write_frame(FrameType frame_type, const uint8_t *payload, uint16_t payload_
         .version = FRAME_VERSION,
         .payload_len = payload_len,
     };
-
-    return;
 
     TELEMETRY_PORT->write(reinterpret_cast<uint8_t *>(&header), sizeof(header));
     TELEMETRY_PORT->write(payload, payload_len);
@@ -214,6 +213,34 @@ void publish_lidar_processing(LidarProcessingResult result) {
     write_frame(FrameType::LidarProcessing, payload,
                 sizeof(lines_count) + lines_count * sizeof(LineFit) + sizeof(circles_count) +
                     circles_count * sizeof(TelemetryCircleFit));
+}
+
+void publish_occupancy_grid(const OccupancyGridMap &grid) {
+    uint16_t width = (uint16_t)grid.width();
+    uint16_t height = (uint16_t)grid.height();
+    uint16_t tile_size_mm = (uint16_t)(grid.tile_size_meters() * 1000.0f);
+
+    const auto &scores = grid.get_scores();
+    uint16_t payload_len =
+        (uint16_t)(sizeof(width) + sizeof(height) + sizeof(tile_size_mm) + scores.size());
+
+    std::array<uint8_t, sizeof(width) + sizeof(height) + sizeof(tile_size_mm) +
+                            OccupancyGridMap::GRID_WIDTH * OccupancyGridMap::GRID_HEIGHT>
+        payload = {};
+
+    size_t offset = 0;
+    memcpy(payload.data() + offset, &width, sizeof(width));
+    offset += sizeof(width);
+
+    memcpy(payload.data() + offset, &height, sizeof(height));
+    offset += sizeof(height);
+
+    memcpy(payload.data() + offset, &tile_size_mm, sizeof(tile_size_mm));
+    offset += sizeof(tile_size_mm);
+
+    memcpy(payload.data() + offset, scores.data(), scores.size());
+
+    write_frame(FrameType::OccupancyGrid, payload.data(), payload_len);
 }
 
 } // namespace telemetry
