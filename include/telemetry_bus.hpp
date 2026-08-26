@@ -2,6 +2,7 @@
 
 #include "config.hpp"
 #include "lib/lidar.hpp"
+#include "lib/lidar_processing.hpp"
 #include <Arduino.h>
 #include <array>
 #include <cstdint>
@@ -41,6 +42,7 @@ bool publish_u32(uint16_t key, uint32_t value);
 bool publish_bool(uint16_t key, bool value);
 
 size_t flush_values(uint16_t max_entries_per_frame = 32);
-void publish_lidar_points(const std::array<LidarResponsePoint, MAX_ALLOWABLE_LIDAR_POINTS> &points);
+void publish_lidar_points(std::span<LidarResponsePoint> points);
+void publish_lidar_processing(LidarProcessingResult result);
 
 } // namespace telemetry

@@ -3,7 +3,7 @@ use std::{
     sync::{LazyLock, Mutex},
 };
 
-use crate::protocol::LidarPoint;
+use crate::protocol::{LidarPoint, LidarProcessing};
 
 #[derive(Copy, Clone, Debug)]
 pub struct TypedValue {
@@ -14,14 +14,19 @@ pub struct TypedValue {
 #[derive(Clone, Debug)]
 pub struct TelemetrySnapshot {
     pub values: HashMap<u16, TypedValue>,
-    pub lidar_points: VecDeque<LidarPoint>,
+    pub lidar_points: Vec<LidarPoint>,
+    pub lidar_processing: LidarProcessing,
 }
 
 impl TelemetrySnapshot {
     pub fn new() -> Self {
         Self {
             values: HashMap::new(),
-            lidar_points: VecDeque::with_capacity(500),
+            lidar_points: Vec::new(),
+            lidar_processing: LidarProcessing {
+                line_fits: vec![],
+                circle_fits: vec![],
+            },
         }
     }
 }

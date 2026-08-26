@@ -1,16 +1,13 @@
 #include "tasks/lidar.hpp"
-#include "Arduino.h"
-#include "telemetry_bus.hpp"
-#undef B1
-#include <Eigen/Geometry>
-#include <algorithm>
-#include <cmath>
+#include "Eigen/Geometry"
+#include <wiring.h>
 
-LidarTask::LidarTask() : SchedulerTask("lidar_task") {}
+LidarTask::LidarTask() : SchedulerTask("lidar_reading_task") {}
 
 static uint8_t SERIAL_MEMORY[200];
 
 constexpr uint32_t LIDAR_TELEMETRY_PERIOD_MICROS = 100;
+constexpr float LIDAR_REPLACEMENT_ANGLE_EPSILON = 1.0f * DEG_TO_RAD;
 
 float wrap_angle_positive(float angle) {
     float wrapped = fmodf(angle, 2.0 * PI);
@@ -30,7 +27,30 @@ LidarResponsePoint to_robot_frame(const LidarResponsePoint &point) {
     return {
         .position = rotated + offset,
         .intensity = point.intensity,
+        .angle = point.angle,
+        .range = point.range,
     };
+}
+
+float smallest_angular_difference(float a, float b) {
+    float diff = wrap_angle_positive(a) - wrap_angle_positive(b);
+
+    if (diff > PI) {
+        diff -= 2.0f * PI;
+    } else if (diff < -PI) {
+        diff += 2.0f * PI;
+    }
+
+    return fabsf(diff);
+}
+
+void upsert_point_by_angle(etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> &points,
+                           const LidarResponsePoint &new_point) {
+    if (points.size() > 350) {
+        points.erase(points.begin());
+    }
+
+    points.push_back(new_point);
 }
 
 bool is_angle_valid(float angle_radians) {
@@ -77,32 +97,20 @@ void LidarTask::loop() {
             if constexpr (std::is_same_v<T, std::optional<LidarResponseData>>) {
                 if (arg.has_value()) {
                     for (int i = 0; i < POINTS_PER_PACK; i++) {
-                        float point_angle =
-                            atan2f((*arg).points[i].position.y(), (*arg).points[i].position.x());
+                        auto point = (*arg).points[i];
+
+                        float point_angle = point.angle;
 
                         if (!is_angle_valid(point_angle)) {
                             continue;
                         }
 
-                        LidarResponsePoint corrected = to_robot_frame((*arg).points[i]);
-
-                        if (this->points.full()) {
-                            this->points.pop_front();
+                        if (point.range < 0.01) {
+                            continue;
                         }
 
-                        this->points.push_back(corrected);
-                    }
-
-                    uint32_t now = micros();
-
-                    if (now >= next_lidar_telemetry_publish) {
-                        std::array<LidarResponsePoint, MAX_ALLOWABLE_LIDAR_POINTS> telemetry_points;
-
-                        std::copy(this->points.begin(), this->points.end(),
-                                  telemetry_points.begin());
-
-                        telemetry::publish_lidar_points(telemetry_points);
-                        next_lidar_telemetry_publish = now + LIDAR_TELEMETRY_PERIOD_MICROS;
+                        LidarResponsePoint corrected = to_robot_frame(point);
+                        upsert_point_by_angle(this->points, corrected);
                     }
                 }
             } else if constexpr (std::is_same_v<T, PacketParseError>) {
@@ -122,3 +130,5 @@ void LidarTask::loop() {
         },
         response);
 }
+
+std::span<LidarResponsePoint> LidarTask::get_points() { return this->points; }

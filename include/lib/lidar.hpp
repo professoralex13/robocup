@@ -3,6 +3,7 @@
 #include "etl/span.h"
 #include "etl/vector.h"
 #include <Eigen/Core>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <variant>
@@ -30,9 +31,12 @@ struct __attribute__((packed)) LidarPacket {
 
 #define PACKET_SIZE sizeof(LidarPacket)
 
+
 struct LidarResponsePoint {
     Eigen::Vector2f position;
     uint8_t intensity;
+    float angle;
+    float range;
 };
 
 struct LidarResponseData {
