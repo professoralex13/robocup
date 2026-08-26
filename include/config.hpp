@@ -50,6 +50,7 @@ static const float LIDAR_MAX_DISTANCE = 12.0;
 static const int LIDAR_TASK_FREQ = 500;
 static const int MOTION_CONTROL_TASK_FREQ = 60;
 static const int POSITION_TRACKING_TASK_FREQ = 60;
+static const int MAPPING_TASK_FREQ = 60;
 static const int IMU_TASK_FREQ = 60;
 static const int LIDAR_PROCESSING_FREQ = 5;
 
