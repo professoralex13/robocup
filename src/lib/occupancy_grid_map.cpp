@@ -10,7 +10,41 @@ int abs_int(int value) { return value < 0 ? -value : value; }
 
 OccupancyGridMap::OccupancyGridMap() { this->clear(); }
 
-void OccupancyGridMap::clear(uint8_t score) { this->scores.fill(score); }
+void OccupancyGridMap::clear(uint8_t score) {
+    this->scores.fill(score);
+
+    if (score != UNKNOWN_SCORE) {
+        return;
+    }
+
+    constexpr float START_ZONE_SIZE_METERS = 0.65f;
+    size_t start_zone_size_tiles = START_ZONE_SIZE_METERS / TILE_SIZE_METERS;
+
+    // Starting zone cannot be wider than half the smallest dimension of the arena
+    assert(start_zone_size_tiles <= std::min(GRID_WIDTH, GRID_HEIGHT) / 2);
+
+    // Fill in the two home bases as empty
+    for (size_t y = 0; y < start_zone_size_tiles; y++) {
+        for (size_t x = 0; x < start_zone_size_tiles; x++) {
+            this->scores[to_index(x, y)] = 0;
+        }
+
+        for (size_t x = GRID_WIDTH - start_zone_size_tiles; x < GRID_WIDTH; x++) {
+            this->scores[to_index(x, y)] = 0;
+        }
+    }
+
+    // Fill in the edge tiles as full
+    for (size_t x = 0; x < GRID_WIDTH; x++) {
+        this->scores[to_index(x, 0)] = 255;
+        this->scores[to_index(x, GRID_HEIGHT - 1)] = 255;
+    }
+
+    for (size_t y = 0; y < GRID_HEIGHT; y++) {
+        this->scores[to_index(0, y)] = 255;
+        this->scores[to_index(GRID_WIDTH - 1, y)] = 255;
+    }
+}
 
 void OccupancyGridMap::update_from_lidar(const Pose &robot_pose,
                                          std::span<const LidarResponsePoint> points) {
