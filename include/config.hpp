@@ -28,13 +28,14 @@ static const float LIDAR_END_ANGLE = 90.0;
 
 // Position Tracking
 static const float DRIVE_WIDTH_MM = 255.0;
-static const float FIELD_WIDTH_X_METERS = 2.425;
-static const float FIELD_HEIGHT_Y_METERS = 4.85;
+static constexpr float FIELD_WIDTH_X_METERS = 2.425;
+static constexpr float FIELD_HEIGHT_Y_METERS = 4.85;
 
 static const float WHEEL_RADIUS_MM = 35.0 * (54.0 / 18.0);
 
 static const float INITIAL_X = 0.4;
 static const float INITIAL_Y = 0.4;
+static const float INITIAL_HEADING = 1.57079632679;
 
 // Sensor Properties
 static const float HEADING_NOISE_PER_RADIAN = 0.01;
@@ -69,3 +70,5 @@ static const float MAX_CIRCLE_NOISE = 0.02;
 static const int MIN_POINTS_PER_OBJECT = 5;
 
 static const int MAX_LIDAR_POINTS = 512;
+
+static const bool ENABLE_TASK_LOGGING = false;

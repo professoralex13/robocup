@@ -1,18 +1,18 @@
 #pragma once
 
+#include "config.hpp"
 #include "lib/lidar.hpp"
 #include "lib/odometry.hpp"
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
-
 class OccupancyGridMap {
   public:
     static constexpr float TILE_SIZE_METERS = 0.025f;
 
-    static constexpr size_t GRID_WIDTH = 97;
-    static constexpr size_t GRID_HEIGHT = 194;
+    static constexpr size_t GRID_WIDTH = FIELD_WIDTH_X_METERS / TILE_SIZE_METERS;
+    static constexpr size_t GRID_HEIGHT = FIELD_HEIGHT_Y_METERS / TILE_SIZE_METERS;
 
     static constexpr uint8_t UNKNOWN_SCORE = 127;
     static constexpr uint8_t FREE_DECREMENT = 2;

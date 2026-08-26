@@ -60,6 +60,10 @@ void write_frame(FrameType frame_type, const uint8_t *payload, uint16_t payload_
         .payload_len = payload_len,
     };
 
+    if (ENABLE_TASK_LOGGING) {
+        return;
+    }
+
     TELEMETRY_PORT->write(reinterpret_cast<uint8_t *>(&header), sizeof(header));
     TELEMETRY_PORT->write(payload, payload_len);
 }

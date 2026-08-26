@@ -20,7 +20,7 @@ MotionControlTask::MotionControlTask(DriveTrainTask *drive_train_task,
                    .with_integral_bounds(-30 * DEG_TO_RAD, 30 * DEG_TO_RAD)) {}
 
 void MotionControlTask::setup() {
-    pure_pursuit.set_current_path({{0.6, 0.6}, {0.6, 4.4}, {1.8, 4.3}, {1.8, 0.6}, {0.6, 0.6}});
+    pure_pursuit.set_current_path({{0.32, 0.27}, {1.25, 0.27}, {1.25, 4}});
 }
 
 void MotionControlTask::loop() {

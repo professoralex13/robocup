@@ -49,8 +49,6 @@ std::array<TimingData, NUM_TASKS> task_timing_data = {{{
     0,
 }}};
 
-#define LOG_TASK_STATS false
-
 void setup() {
     for (size_t i = 0; i < NUM_TASKS; i++) {
         tasks[i]->setup();
@@ -90,7 +88,7 @@ void loop() {
     if (micros() >= next_log_timings) {
         next_log_timings += 5e6;
 
-        if (!LOG_TASK_STATS) {
+        if (!ENABLE_TASK_LOGGING) {
             return;
         }
 

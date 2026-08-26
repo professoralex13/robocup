@@ -21,7 +21,7 @@ void PositionTrackingTask::setup() {
     this->last_heading = imu_task->get_euler_angles().y();
 
     this->current_pose = {.position = Eigen::Vector2f(INITIAL_X, INITIAL_Y),
-                          .heading = this->last_heading};
+                          .heading = INITIAL_HEADING};
 
     this->mcl.set_initial_pose(this->current_pose, 0.06f, 0.05f);
     this->initialized = true;
