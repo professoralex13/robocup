@@ -337,7 +337,11 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
 
                 let screen = world_to_screen(lidar_x_world, lidar_y_world);
 
-                d.draw_circle_v(screen, 2.0, Color::RED);
+                d.draw_circle_v(
+                    screen,
+                    2.0,
+                    Color::color_from_hsv(360.0 * point.intensity as f32 / 256.0, 1.0, 1.0),
+                );
             }
 
             for line in telemetry.lidar_processing.line_fits {
