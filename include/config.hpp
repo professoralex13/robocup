@@ -15,23 +15,23 @@ static const int LEFT_MOTOR_ENCODER_PIN_A = 4;
 static const int LEFT_MOTOR_ENCODER_PIN_B = 5;
 static const int RIGHT_MOTOR_ENCODER_PIN_A = 2;
 static const int RIGHT_MOTOR_ENCODER_PIN_B = 3;
-static const int TICKS_PER_REVOLUTION = 7426;
+static const int TICKS_PER_REVOLUTION = 2985;
 
 // Lidar
 static const float LIDAR_OFFSEST_X = -0.08;
-static const float LIDAR_OFFSET_Y = 0.072;
-static const float LIDAR_ANGLE = 225.0;
+static const float LIDAR_OFFSET_Y = 0.330;
+static const float LIDAR_ANGLE = 45.0;
 
 // This is applied before the rotation offset. Measured anticlockwise from X axis
-static const float LIDAR_START_ANGLE = -135.0;
-static const float LIDAR_END_ANGLE = 90.0;
+static const float LIDAR_START_ANGLE = 45.0;
+static const float LIDAR_END_ANGLE = 270.0;
 
 // Position Tracking
 static const float DRIVE_WIDTH_MM = 255.0;
 static constexpr float FIELD_WIDTH_X_METERS = 2.425;
 static constexpr float FIELD_HEIGHT_Y_METERS = 4.85;
 
-static const float WHEEL_RADIUS_MM = 35.0 * (54.0 / 18.0);
+static const float WHEEL_RADIUS_MM = 35.0 * (48.0 / 24.0);
 
 static const float INITIAL_X = 0.4;
 static const float INITIAL_Y = 0.4;
