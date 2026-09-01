@@ -133,14 +133,33 @@ LidarProcessingResult fit_clusters(const ClusterList &coarse_clusters,
     return {line_fits, circle_fits};
 }
 
-LidarProcessingResult
-LidarProcessing::process_points(std::span<LidarResponsePoint> unsorted_points) {
+LidarProcessingResult LidarProcessing::process_points(std::span<LidarResponsePoint> unsorted_points,
+                                                      const Pose &robot_pose) {
     etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> points(unsorted_points.begin(),
                                                              unsorted_points.end());
 
     std::sort(points.begin(), points.end(), [](auto a, auto b) { return a.angle < b.angle; });
 
+    const float heading = robot_pose.heading;
+    const float heading_sin = sinf(heading);
+    const float heading_cos = cosf(heading);
+
+    for (auto &point : points) {
+        const float robot_x = point.position.x();
+        const float robot_y = point.position.y();
+
+        const float world_x =
+            robot_pose.position.x() + heading_cos * robot_x + heading_sin * robot_y;
+        const float world_y =
+            robot_pose.position.y() - heading_sin * robot_x + heading_cos * robot_y;
+
+        point.position = Eigen::Vector2f(world_x, world_y);
+    }
+
     ClusterList coarse_clusters = get_coarse_clusters(points);
 
-    return fit_clusters(coarse_clusters, points);
+    auto result = fit_clusters(coarse_clusters, points);
+    result.transformed_points = points;
+
+    return result;
 }

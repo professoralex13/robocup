@@ -20,7 +20,8 @@ static MappingTask mapping_task = MappingTask(&position_tracking_task, &lidar_ta
 static MotionControlTask motion_control_task =
     MotionControlTask(&drive_train_task, &position_tracking_task);
 
-static LidarProcessingTask lidar_processing_task = LidarProcessingTask(&lidar_task);
+static LidarProcessingTask lidar_processing_task =
+    LidarProcessingTask(&lidar_task, &position_tracking_task);
 
 static IntakeTask intake_task = IntakeTask();
 static TelemetryTask telemetry_task = TelemetryTask();

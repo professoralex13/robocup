@@ -3,6 +3,7 @@
 #include "config.hpp"
 #include "etl/vector.h"
 #include "lib/lidar.hpp"
+#include "lib/odometry.hpp"
 
 struct LineFit {
     float x1;
@@ -34,9 +35,11 @@ using ClusterList = etl::vector<PointSpan, MAX_LIDAR_POINTS>;
 struct LidarProcessingResult {
     etl::vector<LineFit, MAX_LIDAR_POINTS> line_segments;
     etl::vector<CircleFit, MAX_LIDAR_POINTS> circles;
+    etl::vector<LidarResponsePoint, MAX_LIDAR_POINTS> transformed_points;
 };
 
 class LidarProcessing {
   public:
-    LidarProcessingResult process_points(std::span<LidarResponsePoint> points);
+    LidarProcessingResult process_points(std::span<LidarResponsePoint> points,
+                                         const Pose &robot_pose);
 };

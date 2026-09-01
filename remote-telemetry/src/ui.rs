@@ -326,8 +326,6 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
 
         if !telemetry.values.is_empty() || !telemetry.lidar_points.is_empty() {
             let heading = value_as_f32(telemetry.values.get(&KEY_HEADING)).unwrap_or(0.0);
-            let heading_sin = heading.sin();
-            let heading_cos = heading.cos();
             let pitch = value_as_f32(telemetry.values.get(&KEY_PITCH)).unwrap_or(0.0);
             let left_wheel_velocity =
                 value_as_f32(telemetry.values.get(&KEY_LEFT_WHEEL_VELOCITY)).unwrap_or(0.0);
@@ -351,13 +349,6 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             let lookahead_x = value_as_f32(telemetry.values.get(&KEY_LOOKAHEAD_X)).unwrap_or(0.0);
             let lookahead_y = value_as_f32(telemetry.values.get(&KEY_LOOKAHEAD_Y)).unwrap_or(0.0);
 
-            let robot_frame_to_world = |robot_x_m: f32, robot_y_m: f32| -> (f32, f32) {
-                let world_x = position_x + heading_cos * robot_x_m + heading_sin * robot_y_m;
-                let world_y = position_y - heading_sin * robot_x_m + heading_cos * robot_y_m;
-
-                (world_x, world_y)
-            };
-
             d.draw_text(
                 format!("Num Points: {}", telemetry.lidar_points.len()).as_str(),
                 20,
@@ -367,13 +358,10 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             );
 
             for point in telemetry.lidar_points {
-                let lidar_x_robot_m = point.x_mm as f32 / 1000.0;
-                let lidar_y_robot_m = point.y_mm as f32 / 1000.0;
+                let lidar_x_world_m = point.x_mm as f32 / 1000.0;
+                let lidar_y_world_m = point.y_mm as f32 / 1000.0;
 
-                let (lidar_x_world, lidar_y_world) =
-                    robot_frame_to_world(lidar_x_robot_m, lidar_y_robot_m);
-
-                let screen = world_to_screen(lidar_x_world, lidar_y_world);
+                let screen = world_to_screen(lidar_x_world_m, lidar_y_world_m);
 
                 d.draw_circle_v(
                     screen,
@@ -383,19 +371,14 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             }
 
             for line in telemetry.lidar_processing.line_fits {
-                let (x1_world, y1_world) = robot_frame_to_world(line.x1, line.y1);
-                let (x2_world, y2_world) = robot_frame_to_world(line.x2, line.y2);
-
-                let start_screen = world_to_screen(x1_world, y1_world);
-                let end_screen = world_to_screen(x2_world, y2_world);
+                let start_screen = world_to_screen(line.x1, line.y1);
+                let end_screen = world_to_screen(line.x2, line.y2);
 
                 d.draw_line_ex(start_screen, end_screen, 2.0, Color::GREEN);
             }
 
             for circle in telemetry.lidar_processing.circle_fits {
-                let (cx_world, cy_world) = robot_frame_to_world(circle.cx, circle.cy);
-
-                let c_screen = world_to_screen(cx_world, cy_world);
+                let c_screen = world_to_screen(circle.cx, circle.cy);
 
                 d.draw_circle_v(c_screen, circle.r * pixels_per_meter, Color::GREEN);
                 d.draw_circle_v(c_screen, circle.r * pixels_per_meter - 5.0, Color::WHITE);
@@ -416,7 +399,8 @@ pub fn run_ui(command_sink: &mut CommandSink) -> Result<(), Box<dyn std::error::
             d.draw_circle_lines_v(robot_screen, uncertainty_radius_px, Color::RED);
 
             let heading_length_m = 0.22f32;
-            let (heading_end_x, heading_end_y) = robot_frame_to_world(0.0, heading_length_m);
+            let heading_end_x = position_x + heading_length_m * heading.sin();
+            let heading_end_y = position_y + heading_length_m * heading.cos();
             let heading_end = world_to_screen(heading_end_x, heading_end_y);
             d.draw_line_ex(robot_screen, heading_end, 3.0, Color::BLUE);
 
