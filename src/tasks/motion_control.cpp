@@ -16,11 +16,11 @@ MotionControlTask::MotionControlTask(DriveTrainTask *drive_train_task,
                     .with_output_limits(-1, 1)
                     .with_integral_bounds(-100, 100)),
       pid_turn(PIDController(TURN_KP, TURN_KI, TURN_KD, 3 * DEG_TO_RAD)
-                   .with_output_limits(-1, 1)
+                   .with_output_limits(-2, 2)
                    .with_integral_bounds(-30 * DEG_TO_RAD, 30 * DEG_TO_RAD)) {}
 
 void MotionControlTask::setup() {
-    pure_pursuit.set_current_path({{0.32, 0.27}, {1.25, 0.27}, {1.25, 4}});
+    pure_pursuit.set_current_path({{0.4, 0.4}, {1.25, 0.4}, {1.25, 4}});
 }
 
 void MotionControlTask::loop() {
